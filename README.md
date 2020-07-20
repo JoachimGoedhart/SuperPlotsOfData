@@ -1,8 +1,8 @@
 # SuperPlotsOfData
  
-SuperPlotsofData uses modern data visualization techniques for the quantitative display of data. The key features are:
+SuperPlotsofData uses modern data visualization strategies for transparent presentation of data. The key features are:
 * identification of replicas and their statistical summary (mean of median) by colorblind friendly colors
-* communicates experimental design (number of replicas, paired or non-paired)
+* communicate experimental design (number of replicas, paired or non-paired)
 * enables raincloud plots for plotting the data and distribution
 * makes a qantitative comparison between conditions by calculating the effect size (and a p-value)
 
