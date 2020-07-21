@@ -18,7 +18,9 @@ Standard output generated with the example data:
 
 ### Credits
 
-<p>SuperPlotsOfData is inspired by the app: "PlotsOfData - A web app for visualizing data together with their summaries" - doi: <a href="https://doi.org/10.1371/journal.pbio.3000202">10.1371/journal.pbio.3000202</a>
+<p>SuperPlotsOfData is build on the app: "PlotsOfData - A web app for visualizing data together with their summaries" - doi: <a href="https://doi.org/10.1371/journal.pbio.3000202">10.1371/journal.pbio.3000202</a></br>
+
+The Superplot as a means of communicating about replicates is published by [Lord et al (2020)](https://doi.org/10.1083/jcb.202001064).
 </br>
   
 
