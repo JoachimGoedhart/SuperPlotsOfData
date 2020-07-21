@@ -81,6 +81,7 @@ Okabe_Ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00",
 
 #Read a text file (comma separated values)
 df_tidy_example <- read.csv("combined.csv", na.strings = "")
+df_tidy_example2 <- read.csv("another_example.csv", na.strings = "")
 
 # Create a reactive object here that we can share between all the sessions.
 vals <- reactiveValues(count=0)
@@ -100,8 +101,8 @@ ui <- fluidPage(
                      "data_input", "",
                      choices = 
                        list(
-                         # "Example 1 (wide format)" = 1,
-                         "Example data (tidy format)" = 2,
+                          "Example data (tidy format)" = 1,
+                         "Example data (combined.csv)" = 2,
                          "Upload file" = 3,
                          "Paste data" = 4,
                          "URL (csv files only)" = 5
@@ -176,90 +177,75 @@ ui <- fluidPage(
                    
                    conditionalPanel(
                      condition = "input.info_data==true",
-                     img(src = 'Data_format.png', width = '100%'), h5(""), a("Background info for converting wide data to tidy format", href = "http://thenode.biologists.com/converting-excellent-spreadsheets-tidy-data/education/")
+                    p("The data needs to be organized in 'tidy' format, in which each variable is a column. This means that all measured values must be present in a single column ('Speed' in the example data). The labels for the conditions are present in another column ('Treatment' in the example data). When different replicates are present, this information is stored in a third column ('Replicate' in the example data). The selection of a column with replicates is optional. The order of the columns is arbitrary. For more information on the tidy format, see:"),
+                    a("A basic tutorial for converting wide data to tidy format", href = "http://thenode.biologists.com/converting-excellent-spreadsheets-tidy-data/education/"),br(),
+                    a("The original paper by Hadley Wickham 'Tidy data'", href = "http://dx.doi.org/10.18637/jss.v059.i10")
+                    
                    ),
                    NULL
                  ),
                  
       conditionalPanel(
         condition = "input.tabs=='Plot'",
-        radioButtons("jitter_type", "Data offset", choices = list("Quasirandom" = "quasirandom", 
-#Uncomment for sinaplot                                           "Sinaplot" = "sina", 
-                                                                  "Random" = "random"), selected = "quasirandom"),
         
-        sliderInput("alphaInput", "Visibility of the data", 0, 1, 0.7),
-        checkboxInput(inputId = "violin",
-                      label = "Display data distribution",
-                      value = FALSE),
+        radioButtons(inputId = "jitter_type", label = "Data offset", choices = list("Quasirandom" = "quasirandom", "Random" = "random"), selected = "quasirandom"),
+        
+        checkboxInput(inputId = "violin", label = "Display data distribution", value = FALSE),
+        
+        sliderInput(inputId = "alphaInput", label = "Visibility of the data", 0, 1, 0.7),
 
+        radioButtons(inputId = "summaryInput", label = "Summary statistics for replicates:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
+        
 
-        radioButtons("summaryInput", "Summary statistics for replicates:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
-
-        checkboxInput(inputId = "connect",
-                      label = "Connect the dots (paired data)",
-                      value = FALSE),
-
+        checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
+        
+        checkboxInput(inputId = "show_table", label = "Display table with effect size", value = FALSE),
+        
+          conditionalPanel(condition = "input.show_table == true", selectInput("zero", "Select reference condition:", choices = "")),
 
         sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1),
-
-        radioButtons(inputId = "ordered",
-             label= "Order of the conditions:",
-             choices = list("As supplied" = "none", "By median value" = "median", "By alphabet/number" = "alphabet"),
-             selected = "none"),
+        
+        h4("Plot Layout"),
+        
+        radioButtons(inputId = "ordered", label= "Order of the conditions:", choices = list("As supplied" = "none", "By median value" = "median", "By alphabet/number" = "alphabet"), selected = "none"),
 
         selectInput("split_direction", label = "Split replicas:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
-checkboxInput(inputId = "show_table",
-              label = "Show summary of the differences",
-              value = FALSE),
-selectInput("zero", "Select reference condition:", choices = ""),
 
-        h4("Plot Layout"),      
+        checkboxInput(inputId = "rotate_plot", label = "Rotate plot 90 degrees", value = FALSE),
 
-        checkboxInput(inputId = "rotate_plot",
-              label = "Rotate plot 90 degrees",
-              value = FALSE),
+        checkboxInput(inputId = "no_grid", label = "Remove gridlines", value = FALSE),
 
-        checkboxInput(inputId = "no_grid",
-                      label = "Remove gridlines",
-                      value = FALSE),
+        checkboxInput(inputId = "change_scale", label = "Change scale", value = FALSE),
+        
+          conditionalPanel(condition = "input.change_scale == true", checkboxInput(inputId = "scale_log_10", label = "Log scale", value = FALSE),
 
-        checkboxInput(inputId = "change_scale",
-                      label = "Change scale",
-                      value = FALSE),
-        conditionalPanel(condition = "input.change_scale == true",
-          checkboxInput(inputId = "scale_log_10",
-                        label = "Log scale",
-                        value = FALSE),
+        textInput("range", "Range of values (min,max)", value = "")),
 
-          textInput("range", "Range of values (min,max)", value = "")),
-
-# checkboxInput(inputId = "add_CI", label = HTML("Add 95% CI <br/> (minimum n=10)"), value = FALSE),
-# conditionalPanel(
-#   condition = "input.add_CI == true && input.summaryInput !='box'",
-#   checkboxInput(inputId = "ugly_errors", label = "Classic error bars", value = FALSE)),
+      # checkboxInput(inputId = "add_CI", label = HTML("Add 95% CI <br/> (minimum n=10)"), value = FALSE),
+      # conditionalPanel(
+      #   condition = "input.add_CI == true && input.summaryInput !='box'",
+      #   checkboxInput(inputId = "ugly_errors", label = "Classic error bars", value = FALSE)),
 
 
             ########## Choose color from list
             # selectInput("colour_list", "Colour:", choices = ""),
 
-          radioButtons("adjustcolors", "Color palette:", choices = 
-            list(
-              "Standard" = 1,
-              "Okabe&Ito; CUD" = 6,
-              "Tol; bright" = 2,
-              "Tol; muted" = 3,
-              "Tol; light" = 4,
-              "User defined"=5),
-            selected =  6),
+          radioButtons("adjustcolors", "Color palette:",
+                       choices = 
+                          list("Standard" = 1,
+                               "Okabe&Ito; CUD" = 6,
+                               "Tol; bright" = 2,
+                               "Tol; muted" = 3,
+                               "Tol; light" = 4,
+                               "User defined"=5),
+                           selected =  6),
       
               conditionalPanel(condition = "input.adjustcolors == 5",
                  textInput("user_color_list", "Names or hexadecimal codes separated by a comma (applied to conditions in alphabetical order):", value = "turquoise2,#FF2222,lawngreen"), 
                  
-                 h5("",
-                    a("Click here for more info on color names",
-                      href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
+              h5("",a("Click here for more info on color names", href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
                  
-        ),
+              ),
 
         numericInput("plot_height", "Height (# pixels): ", value = 480),
         numericInput("plot_width", "Width (# pixels):", value = 480),
@@ -348,9 +334,9 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
                   ), 
                   tabPanel("Data Summary",
-                           h3("Statistics for each replicate"),dataTableOutput('data_summary'),
-                           h3("Statistics for each condition"),dataTableOutput('data_summary_cluster') , 
-                           h3("Statistics for differences of means"),dataTableOutput('data_difference')
+                           h3("Statistics for individual replicates"),dataTableOutput('data_summary'),
+                           h3("Statistics for conditions"),dataTableOutput('data_summary_cluster') , 
+                           h3("Statistics for differences between conditions"),dataTableOutput('data_difference')
                            ),
                   tabPanel("About", includeHTML("about.html")
                            )
@@ -373,7 +359,10 @@ server <- function(input, output, session) {
 df_upload <- reactive({
     
     if (input$data_input == 1) {
-      data <- df_wide_example
+      data <- df_tidy_example2
+      x_var.selected <<- "Condition"
+      y_var.selected <<- "Activity"
+      g_var.selected <<- "Replicate" 
     }  else if (input$data_input == 2) {
         data <- df_tidy_example
         x_var.selected <<- "Treatment"
@@ -666,7 +655,7 @@ url <- reactive({
 ############# Pop-up that displays the URL to 'clone' the current settings ################
 
 observeEvent(input$settings_copy , {
-  showModal(urlModal(url=url(), title = "Use the URL to launch PlotsOfData with the current setting"))
+  showModal(urlModal(url=url(), title = "Use the URL to launch SuperPlotsOfData with the current setting"))
 })
 
 observeEvent(input$legend_copy , {
@@ -749,11 +738,12 @@ output$data_uploaded <- renderDataTable(
 #    observe({ print(input$tidyInput) })
   df_filtered(),
   rownames = FALSE,
-  options = list(pageLength = 100, autoWidth = FALSE,
-                  lengthMenu = c(10, 100, 1000, 10000)),
+  options = list(pageLength = 10,
+                  lengthMenu = c(10, 100, 1000, 10000), columnDefs = list(list(className = 'dt-left', targets = '_all'))),
   editable = FALSE,selection = 'none'
 )
   
+
 ########### Caluclate stats for the MEAN ############
 
 df_summary_replica <- reactive({
@@ -803,7 +793,7 @@ height <- reactive ({ input$plot_height })
 
 output$downloadPlotPDF <- downloadHandler(
   filename <- function() {
-    paste("PlotsOfData_", Sys.time(), ".pdf", sep = "")
+    paste("SuperPlotsOfData_", Sys.time(), ".pdf", sep = "")
   },
   content <- function(file) {
     pdf(file, width = input$plot_width/72, height = input$plot_height/72)
@@ -815,7 +805,7 @@ output$downloadPlotPDF <- downloadHandler(
 
 output$downloadPlotSVG <- downloadHandler(
   filename <- function() {
-    paste("PlotsOfData_", Sys.time(), ".svg", sep = "")
+    paste("SuperPlotsOfData_", Sys.time(), ".svg", sep = "")
   },
   content <- function(file) {
     svg(file, width = input$plot_width/72, height = input$plot_height/72)
@@ -827,7 +817,7 @@ output$downloadPlotSVG <- downloadHandler(
 
 output$downloadPlotEPS <- downloadHandler(
   filename <- function() {
-    paste("PlotsOfData_", Sys.time(), ".eps", sep = "")
+    paste("SuperPlotsOfData_", Sys.time(), ".eps", sep = "")
   },
   content <- function(file) {
     cairo_ps(file, width = input$plot_width/72, height = input$plot_height/72)
@@ -840,7 +830,7 @@ output$downloadPlotEPS <- downloadHandler(
 
 output$downloadPlotPNG <- downloadHandler(
   filename <- function() {
-    paste("PlotsOfData_", Sys.time(), ".png", sep = "")
+    paste("SuperPlotsOfData_", Sys.time(), ".png", sep = "")
   },
   content <- function(file) {
     png(file, width = input$plot_width*4, height = input$plot_height*4, res=300)
@@ -1182,7 +1172,6 @@ output$data_summary_cluster <- renderDataTable(
                    editable=FALSE, colReorder = list(realtime = FALSE), columnDefs = list(list(className = 'dt-center', targets = '_all'))
     ) 
   ) 
-  #   %>% formatRound(n, digits=0)
 ) 
 
 #### Render the data summary as a table ###########
@@ -1198,7 +1187,6 @@ output$data_difference <- renderDataTable(
                    editable=FALSE, colReorder = list(realtime = FALSE), columnDefs = list(list(className = 'dt-center', targets = '_all'))
     ) 
   ) 
-  #   %>% formatRound(n, digits=0)
 ) 
 
 
