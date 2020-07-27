@@ -347,6 +347,10 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
 
 server <- function(input, output, session) {
+  observe({
+    showNotification("The SuperPlotsOfData is still under development, which means that updates may change the appearance of the plot and may have different features. Any feedback or suggestions to improve the app are highly appreciated. For contact information, see the 'About' tab", duration = 100, type = "warning")
+  })
+  
 
   x_var.selected <- "Treatment"
   y_var.selected <- "Speed"
@@ -919,9 +923,9 @@ plotdata <- reactive({
       
     }
     if (input$connect) {
-      p <-  p + stat_summary(aes_string(group = 'Replica'), color="black", fun = input$summaryInput, geom = "line", size = 2, alpha=input$alphaInput_summ) 
+      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun = input$summaryInput, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
 
-        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), fun = input$summaryInput, geom = "point", stroke = 2, shape = 21, size = 10, alpha=input$alphaInput_summ) 
+        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun = input$summaryInput, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
       # } else if (input$color_data == FALSE) {
         # p <-  p + stat_summary(aes_string(group = 'Replica'), fill = 'grey', fun = input$summaryInput, geom = "point", stroke = 2, shape = 21, size = 10, alpha=input$alphaInput_summ) 
         
@@ -1088,12 +1092,14 @@ df_difference <- reactive({
   
   df_difference <- df_difference  %>% select(Condition, difference=estimate, `95%CI_lo`=conf.low, `95%CI_hi`=conf.high,p.value)
   
-  df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 10)
-
-
+  df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 8)
   
+  #Use scientific notation if smaller than 0.001
+  if (df_difference$p.value<0.001) {
+  df_difference$p.value  <- formatC(df_difference$p.value, format = "e", digits = 2)
+  }
+
   return(df_difference)
-  
   
 })
 
