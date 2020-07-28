@@ -930,16 +930,16 @@ plotdata <- reactive({
       
     }
     if (input$connect) {
-      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
+      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun.y = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
 
-        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
+        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun.y = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
       # } else if (input$color_data == FALSE) {
         # p <-  p + stat_summary(aes_string(group = 'Replica'), fill = 'grey', fun = input$summaryInput, geom = "point", stroke = 2, shape = 21, size = 10, alpha=input$alphaInput_summ) 
         
         
     }
     else if (!input$connect)
-    p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun = stats, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
+    p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun.y = stats, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
     
 
     if  (input$violin) {
@@ -1065,9 +1065,10 @@ df_filtered_stats <- reactive({
 
 df_difference <- reactive({
 
-  if (input$summaryInput =="median")  
+  if (input$summaryInput =="median")  {
   df <- df_summary_replica() %>% rename(Value=median)
-  else  df <- df_summary_replica() %>% rename(Value=mean)
+  } else if (input$summaryInput =="mean") {
+  df <- df_summary_replica() %>% rename(Value=mean)}
   
   df_cluster <- df_summary_cluster()
   if (max(df_cluster$n == 1)) {
