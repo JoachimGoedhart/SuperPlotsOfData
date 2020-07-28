@@ -274,7 +274,7 @@ ui <- fluidPage(
               condition = "input.adj_fnt_sz == true",
               numericInput("fnt_sz_ttl", "Size axis titles:", value = 24),
               numericInput("fnt_sz_ax", "Size axis labels:", value = 18)),
-        checkboxInput(inputId = "add_description",
+        checkboxInput(inputId = "add_legend",
               label = "Add legend",
               value = FALSE),
         NULL
@@ -319,8 +319,8 @@ ui <- fluidPage(
                            # downloadButton("downloadPlotSVG", "Download svg-file"), 
                            # downloadButton("downloadPlotEPS", "Download eps-file"), 
                            downloadButton("downloadPlotPNG", "Download png-file"), 
-                           # actionButton("settings_copy", icon = icon("clone"),
-                           #              label = "Clone current setting"),
+                           actionButton("settings_copy", icon = icon("clone"),
+                                         label = "Clone current setting"),
                            # actionButton("legend_copy", icon = icon("clone"),
                                         # label = "Copy Legend"),
                                         
@@ -348,7 +348,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
 server <- function(input, output, session) {
   observe({
-    showNotification("The SuperPlotsOfData is still under development, which means that updates may change the appearance of the plot and may have different features. Any feedback or suggestions to improve the app are highly appreciated. For contact information, see the 'About' tab", duration = 100, type = "warning")
+    showNotification("The SuperPlotsOfData webtool is still in development, and therefore updates may change the appearance of the plot and may have different features. Any feedback or suggestions to improve the app are highly appreciated. For contact information, see the 'About' tab", duration = 100, type = "warning")
   })
   
 
@@ -400,7 +400,7 @@ df_upload <- reactive({
         return(data.frame(x = "Enter a full HTML address, for example: https://zenodo.org/record/2545922/files/FRET-efficiency_mTq2.csv"))
       } else if (url.exists(input$URL) == FALSE) {
          return(data.frame(x = paste("Not a valid URL: ",input$URL)))
-      } else {data <- read_csv(input$URL)}
+      } else {data <- read.csv(input$URL)}
     
       #Read the data from textbox
     } else if (input$data_input == 4) {
@@ -493,24 +493,38 @@ observeEvent(input$add_bar, {
 
 observe({
   
-  ############ ?data ################
+
   
   query <- parseQueryString(session$clientData$url_search)
+  
+  ############ ?data ################
+  
   if (!is.null(query[['data']])) {
     presets_data <- query[['data']]
     presets_data <- unlist(strsplit(presets_data,";"))
-    # observe(print((presets_data[1])))
-#    observe(print(("hello")))    
-    updateRadioButtons(session, "data_input", selected = presets_data[1])    
-
+    observe(print((presets_data)))
     
-    #To Implement:
-    #presets_data[3], x_var
-    #presets_data[4], y_var
-    #presets_data[5], h_facet
-    #presets_data[6], v_facet
+    updateRadioButtons(session, "data_input", selected = presets_data[1])    
+    # updateCheckboxInput(session, "tidyInput", value = presets_data[2])
+    
+    # updateSelectInput(session, "x_var", selected = presets_data[3])
+    # updateSelectInput(session, "y_var", selected = presets_data[4])    
+    # updateSelectInput(session, "g_var", selected = presets_data[5])
+    
+    x_var.selected <<- presets_data[3]
+    y_var.selected <<- presets_data[4]
+    g_var.selected <<- presets_data[5]
+    
+    if (presets_data[1] == "1" || presets_data[1] == "2") {
+      updateTabsetPanel(session, "tabs", selected = "Plot")
     }
-
+  }
+  
+  
+  
+  
+  
+  
   ############ ?vis ################
   
   if (!is.null(query[['vis']])) {
@@ -521,11 +535,16 @@ observe({
   
   #radio, slider, radio, check, slider
   updateRadioButtons(session, "jitter_type", selected = presets_vis[1])
-  updateSliderInput(session, "alphaInput", value = presets_vis[2])
-  updateRadioButtons(session, "summaryInput", selected = presets_vis[3])
-  updateCheckboxInput(session, "add_CI", value = presets_vis[4])
-  updateSliderInput(session, "alphaInput_summ", value = presets_vis[5])
-  updateRadioButtons(session, "ordered", selected = presets_vis[6])
+  updateCheckboxInput(session, "violin", value = presets_vis[2])
+  updateSliderInput(session, "alphaInput", value = presets_vis[3])
+  updateRadioButtons(session, "summaryInput", selected = presets_vis[4])
+  updateCheckboxInput(session, "connect", value = presets_vis[5])
+  updateCheckboxInput(session, "show_table", value = presets_vis[6])
+  
+  #select zero
+  
+  updateSliderInput(session, "alphaInput_summ", value = presets_vis[8])
+  updateRadioButtons(session, "ordered", selected = presets_vis[9])
 #  updateTabsetPanel(session, "tabs", selected = "Plot")
   }
   
@@ -537,16 +556,18 @@ observe({
     presets_layout <- unlist(strsplit(presets_layout,";"))
     observe(print((presets_layout)))
 
-    updateCheckboxInput(session, "rotate_plot", value = presets_layout[1])
-    updateCheckboxInput(session, "no_grid", value = (presets_layout[2]))
+    updateSelectInput(session, "split_direction", selected = presets_layout[1])
+    
+    updateCheckboxInput(session, "rotate_plot", value = presets_layout[2])
+    updateCheckboxInput(session, "no_grid", value = (presets_layout[3]))
 
-    updateCheckboxInput(session, "change_scale", value = presets_layout[3])
-    updateCheckboxInput(session, "scale_log_10", value = presets_layout[4])
-     updateTextInput(session, "range", value= presets_layout[5])
+    updateCheckboxInput(session, "change_scale", value = presets_layout[4])
+    updateCheckboxInput(session, "scale_log_10", value = presets_layout[5])
+     updateTextInput(session, "range", value= presets_layout[6])
      # updateCheckboxInput(session, "color_data", value = presets_layout[6])
      # updateCheckboxInput(session, "color_stats", value = presets_layout[7])
      updateRadioButtons(session, "adjustcolors", selected = presets_layout[8])    
-     updateCheckboxInput(session, "add_description", value = presets_layout[9])
+     updateCheckboxInput(session, "add_legend", value = presets_layout[9])
      if (length(presets_layout)>10) {
        updateNumericInput(session, "plot_height", value= presets_layout[10])
        updateNumericInput(session, "plot_width", value= presets_layout[11])
@@ -584,7 +605,7 @@ observe({
     updateCheckboxInput(session, "adj_fnt_sz", value = presets_label[6])
     updateNumericInput(session, "fnt_sz_ttl", value= presets_label[7])
     updateNumericInput(session, "fnt_sz_ax", value= presets_label[8])
-    updateCheckboxInput(session, "add_description", value = presets_label[9])
+    updateCheckboxInput(session, "add_legend", value = presets_label[9])
     }
   
   ############ ?url ################
@@ -609,11 +630,13 @@ url <- reactive({
 
   base_URL <- paste(sep = "", session$clientData$url_protocol, "//",session$clientData$url_hostname, ":",session$clientData$url_port, session$clientData$url_pathname)
   
-  data <- c(input$data_input, "", input$x_var, input$y_var, input$h_facet, input$v_facet)
-
-  vis <- c(input$jitter_type, input$alphaInput, input$summaryInput, input$add_CI, input$alphaInput_summ, input$ordered)
-  layout <- c(input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, "", "",
-              input$adjustcolors, input$add_description, input$plot_height, input$plot_width)
+  # data <- c(input$data_input, "", input$x_var, input$y_var, input$h_facet, input$v_facet)
+  data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
+ 
+ 
+  vis <- c(input$jitter_type, input$violin, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$zero, input$alphaInput_summ, input$ordered)
+  layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, "7",
+              input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
   #Hide the standard list of colors if it is'nt used
    if (input$adjustcolors != "5") {
@@ -622,7 +645,7 @@ url <- reactive({
      color <- c(input$colour_list, input$user_color_list)
    }
   
-  label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_description)
+  label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_legend)
 
   #replace FALSE by "" and convert to string with ; as seperator
   data <- sub("FALSE", "", data)
@@ -855,6 +878,8 @@ plotdata <- reactive({
 ####### Read the order from the ordered dataframe #############  
     koos <- df_sorted()
     
+    stats <- as.character(input$summaryInput)
+    
 #   observe({ print(koos) })
     
     custom_order <-  levels(factor(koos$Condition))
@@ -923,16 +948,16 @@ plotdata <- reactive({
       
     }
     if (input$connect) {
-      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun = input$summaryInput, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
+      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
 
-        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun = input$summaryInput, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
+        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
       # } else if (input$color_data == FALSE) {
         # p <-  p + stat_summary(aes_string(group = 'Replica'), fill = 'grey', fun = input$summaryInput, geom = "point", stroke = 2, shape = 21, size = 10, alpha=input$alphaInput_summ) 
         
         
     }
     else if (!input$connect)
-    p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun = input$summaryInput, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
+    p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun = stats, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
     
 
     if  (input$violin) {
@@ -978,7 +1003,7 @@ plotdata <- reactive({
     }
      
     # #remove legend (if selected)
-    if (input$add_description == FALSE) {
+    if (input$add_legend == FALSE) {
       p <- p + theme(legend.position="none")
     }
 
@@ -1093,6 +1118,8 @@ df_difference <- reactive({
   df_difference <- df_difference  %>% select(Condition, difference=estimate, `95%CI_lo`=conf.low, `95%CI_hi`=conf.high,p.value)
   
   df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 8)
+  
+  observe({print(df_difference$p.value)})
   
   #Use scientific notation if smaller than 0.001
   if (df_difference$p.value<0.001) {
