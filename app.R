@@ -771,7 +771,7 @@ output$data_uploaded <- renderDataTable(
 )
   
 
-########### Caluclate stats for the MEAN ############
+########### Caluclate summary stats for each REPLICATE ############
 
 df_summary_replica <- reactive({
   koos <- df_selected()
@@ -780,36 +780,18 @@ df_summary_replica <- reactive({
     group_by(Condition, Replica) %>% 
     summarise(n = n(),
             mean = mean(Value, na.rm = TRUE),
-#            median = median(Value, na.rm = TRUE),
-            sd = sd(Value, na.rm = TRUE)) %>%
+            sd = sd(Value, na.rm = TRUE),
+            'p(Shapiro-Wilk)' = f(Value),
+            median= median(Value, na.rm = TRUE),
+            MAD= mad(Value, na.rm = TRUE, constant=1),
+            IQR= IQR(Value, na.rm = TRUE),
+            Q1=quantile(Value, probs=0.25),
+            Q3=quantile(Value, probs=0.75)) %>%
       mutate(sem = sd / sqrt(n - 1),
              `95%CI_lo` = mean + qt((1-Confidence_level)/2, n - 1) * sem,
              `95%CI_hi` = mean - qt((1-Confidence_level)/2, n - 1) * sem)
 
   })
-
-############ Caluclate stats for the MEDIAN ##########
-
-df_summary_median <- reactive({
-    
-    kees <- df_selected()
-
-    df <- kees %>%
-                  group_by(Condition, Replica) %>%
-                    summarise(
-#                            n= n(),
-                      'p(Shapiro-Wilk)' = f(Value),
-                         median= median(Value, na.rm = TRUE),
-                            MAD= mad(Value, na.rm = TRUE, constant=1),
-                            IQR= IQR(Value, na.rm = TRUE),
-                            Q1=quantile(Value, probs=0.25),
-                            Q3=quantile(Value, probs=0.75))
-    
-
-    return(df)
-  })
-
-
 
 
 ######### DEFINE DOWNLOAD BUTTONS ###########
@@ -1064,13 +1046,10 @@ df_filtered_stats <- reactive({
   klaas <- df_summary_replica() 
   # %>% mutate(mean_CI_lo = round(mean_CI_lo, digits), mean_CI_hi = round(mean_CI_hi, digits)) %>% unite("95CI mean", c("mean_CI_lo","mean_CI_hi"), sep=" , ")
 
-    koos <- df_summary_median() 
-    
-  klaas  <- full_join(klaas, koos,by=c("Condition","Replica"))
 
     # Round down to the number of selected digits
     # klaas <- klaas %>% mutate_at(c(3:5, 7:11), round, input$digits)
-    klaas <- klaas %>% mutate_at(c(4:8, 10:14), round, input$digits) %>% mutate_at(c(9), round, 4) 
+    klaas <- klaas %>% mutate_at(c(4:5, 7:14), round, input$digits) %>% mutate_at(c(6), round, 4) 
     # observe({ print((klaas)) }) 
 
   ##### Show the statistics selected by the user ############  
@@ -1085,8 +1064,11 @@ df_filtered_stats <- reactive({
 
 
 df_difference <- reactive({
+
+  if (input$summaryInput =="median")  
+  df <- df_summary_replica() %>% rename(Value=median)
+  else  df <- df_summary_replica() %>% rename(Value=mean)
   
-  df <- df_summary_replica() %>% rename(Value=mean)
   df_cluster <- df_summary_cluster()
   if (max(df_cluster$n == 1)) {
     df <- df_selected()}
