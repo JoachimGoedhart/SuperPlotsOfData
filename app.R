@@ -42,6 +42,7 @@ library(broom)
 #library(ggforce)
 
 source("geom_flat_violin.R")
+source("themes.R")
 
 ###### Functions ##########
 
@@ -190,7 +191,7 @@ ui <- fluidPage(
         
         radioButtons(inputId = "jitter_type", label = "Data offset", choices = list("Quasirandom" = "quasirandom", "Random" = "random"), selected = "quasirandom"),
         
-        checkboxInput(inputId = "violin", label = "Display data distribution", value = FALSE),
+        checkboxInput(inputId = "show_distribution", label = "Display data distribution", value = FALSE),
         
         sliderInput(inputId = "alphaInput", label = "Visibility of the data", 0, 1, 0.7),
 
@@ -246,6 +247,7 @@ ui <- fluidPage(
               h5("",a("Click here for more info on color names", href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
                  
               ),
+        checkboxInput(inputId = "dark", label = "Dark Theme", value = FALSE),
 
         numericInput("plot_height", "Height (# pixels): ", value = 480),
         numericInput("plot_width", "Width (# pixels):", value = 480),
@@ -272,8 +274,10 @@ ui <- fluidPage(
               value = FALSE),
        conditionalPanel(
               condition = "input.adj_fnt_sz == true",
-              numericInput("fnt_sz_ttl", "Size axis titles:", value = 24),
-              numericInput("fnt_sz_ax", "Size axis labels:", value = 18)),
+              numericInput("fnt_sz_title", "Plot title:", value = 24),
+              numericInput("fnt_sz_labs", "Axis titles:", value = 24),
+              numericInput("fnt_sz_ax", "Axis labels:", value = 18)
+              ),
         checkboxInput(inputId = "add_legend",
               label = "Add legend",
               value = FALSE),
@@ -535,7 +539,7 @@ observe({
   
   #radio, slider, radio, check, slider
   updateRadioButtons(session, "jitter_type", selected = presets_vis[1])
-  updateCheckboxInput(session, "violin", value = presets_vis[2])
+  updateCheckboxInput(session, "show_distribution", value = presets_vis[2])
   updateSliderInput(session, "alphaInput", value = presets_vis[3])
   updateRadioButtons(session, "summaryInput", selected = presets_vis[4])
   updateCheckboxInput(session, "connect", value = presets_vis[5])
@@ -604,8 +608,10 @@ observe({
     
     updateCheckboxInput(session, "adj_fnt_sz", value = presets_label[6])
     updateNumericInput(session, "fnt_sz_ttl", value= presets_label[7])
-    updateNumericInput(session, "fnt_sz_ax", value= presets_label[8])
-    updateCheckboxInput(session, "add_legend", value = presets_label[9])
+    updateNumericInput(session, "fnt_sz_labs", value= presets_label[8])
+    updateNumericInput(session, "fnt_sz_ax", value= presets_label[9])
+    # updateNumericInput(session, "fnt_sz_cand", value= presets_label[10])
+    updateCheckboxInput(session, "add_legend", value = presets_label[11]) 
     }
   
   ############ ?url ################
@@ -634,7 +640,7 @@ url <- reactive({
   data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
  
  
-  vis <- c(input$jitter_type, input$violin, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$zero, input$alphaInput_summ, input$ordered)
+  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$zero, input$alphaInput_summ, input$ordered)
   layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, "7",
               input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
@@ -647,6 +653,10 @@ url <- reactive({
   
   label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_legend)
 
+  label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_title, input$fnt_sz_labs, input$fnt_sz_ax, "", input$add_legend)
+  
+  
+  
   #replace FALSE by "" and convert to string with ; as seperator
   data <- sub("FALSE", "", data)
   data <- paste(data, collapse=";")
@@ -866,6 +876,8 @@ plotdata <- reactive({
     
     custom_order <-  levels(factor(koos$Condition))
 #    custom_labels <- levels(factor(koos$label))
+    
+    if (input$dark) {line_color="grey80"} else {line_color="gray20"}
   
   ########## Define alternative color palettes ##########
   
@@ -919,7 +931,7 @@ plotdata <- reactive({
     
     data_width = 0.4
     
-    if (input$violin) data_width=data_width/2
+    if (input$show_distribution) data_width=data_width/2
   ##### plot selected data summary (bottom layer) ####
 
    #### plot individual measurements (middle layer) ####
@@ -930,25 +942,23 @@ plotdata <- reactive({
       
     }
     if (input$connect) {
-      p <-  p + stat_summary(aes_string(group = 'Replica'), color="grey20", fun.y = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
+      p <-  p + stat_summary(aes_string(group = 'Replica'), color=line_color, fun.y = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
 
-        p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color="grey20", fun.y = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
-      # } else if (input$color_data == FALSE) {
-        # p <-  p + stat_summary(aes_string(group = 'Replica'), fill = 'grey', fun = input$summaryInput, geom = "point", stroke = 2, shape = 21, size = 10, alpha=input$alphaInput_summ) 
-        
+      p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color=line_color, fun.y = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
         
     }
     else if (!input$connect)
     p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun.y = stats, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
     
 
-    if  (input$violin) {
+    if  (input$show_distribution) {
       p <- p + geom_flat_violin(aes_string(x='Condition',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
     }
     
 ########### Do some formatting of the lay-out ###########
-
-     p <- p+ theme_light(base_size = 16)
+    
+    p <- p+ theme_light(base_size = 16)
+    if (input$dark) {p <- p+ theme_darker(base_size = 16)}
     
      # if log-scale checked specified
      if (input$scale_log_10)
@@ -978,11 +988,13 @@ plotdata <- reactive({
     if (input$label_axes)
       p <- p + labs(x = input$lab_x, y = input$lab_y)
     
-    # if font size is adjusted
-    if (input$adj_fnt_sz) {
-      p <- p + theme(axis.text = element_text(size=input$fnt_sz_ax))
-      p <- p + theme(axis.title = element_text(size=input$fnt_sz_ttl))
-    }
+     # # if font size is adjusted
+     if (input$adj_fnt_sz) {
+       p <- p + theme(axis.text = element_text(size=input$fnt_sz_ax))
+       p <- p + theme(axis.title = element_text(size=input$fnt_sz_labs))
+       p <- p + theme(plot.title = element_text(size=input$fnt_sz_title))
+     }
+     
      
     # #remove legend (if selected)
     if (input$add_legend == FALSE) {
