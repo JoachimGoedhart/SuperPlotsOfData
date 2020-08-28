@@ -985,8 +985,26 @@ plotdata <- reactive({
       p <- p + ggtitle(input$title)
     
     # if labels specified
-    if (input$label_axes)
-      p <- p + labs(x = input$lab_x, y = input$lab_y)
+    if (input$label_axes) {
+      
+      x_label = input$lab_x
+      y_label = input$lab_y
+     
+     } else {
+         y_label <- paste(input$y_var)
+         x_label <- paste(input$x_var)
+       }
+       
+       p <- p + labs(x = x_label, y = y_label)
+     
+     
+     
+     
+     
+     
+     
+     
+     
     
      # # if font size is adjusted
      if (input$adj_fnt_sz) {
