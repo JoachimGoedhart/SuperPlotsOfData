@@ -77,6 +77,8 @@ Tol_muted <- c('#88CCEE', '#44AA99', '#117733', '#332288', '#DDCC77', '#999933',
 
 Tol_light <- c('#BBCC33', '#AAAA00', '#77AADD', '#EE8866', '#EEDD88', '#FFAABB', '#99DDFF', '#44BB99', '#DDDDDD')
 
+Greyscale <- c('grey30','grey40','grey50','grey60','grey70')
+
 #From Color Universal Design (CUD): https://jfly.uni-koeln.de/color/
 Okabe_Ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
 
@@ -197,8 +199,6 @@ ui <- fluidPage(
 
         radioButtons(inputId = "summaryInput", label = "Summary statistics for replicates:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
         
-
-        checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
         
         checkboxInput(inputId = "show_table", label = "Display table with effect size", value = FALSE),
         
@@ -206,11 +206,34 @@ ui <- fluidPage(
 
         sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1),
         
+        h4("Formatting of Replicates"),
+        checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
+        
+        checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
+        
+        radioButtons("adjustcolors", "By color:",
+                     choices = 
+                       list("Greyscale" = 1,
+                            "Viridis" = 2,
+                            "Okabe&Ito; CUD" = 6,
+                            "Tol; bright" = 3,
+                            "Tol; light" = 4,
+                            "User defined"=5),
+                     selected =  6),
+        
+        conditionalPanel(condition = "input.adjustcolors == 5",
+                         textInput("user_color_list", "Names or hexadecimal codes separated by a comma (applied to conditions in alphabetical order):", value = "turquoise2,#FF2222,lawngreen"), 
+                         
+                         h5("",a("Click here for more info on color names", href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
+                         
+        ),
+        selectInput("split_direction", label = "Split replicas:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
+        
+        
         h4("Plot Layout"),
         
         radioButtons(inputId = "ordered", label= "Order of the conditions:", choices = list("As supplied" = "none", "By median value" = "median", "By alphabet/number" = "alphabet"), selected = "none"),
 
-        selectInput("split_direction", label = "Split replicas:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
 
         checkboxInput(inputId = "rotate_plot", label = "Rotate plot 90 degrees", value = FALSE),
 
@@ -231,23 +254,10 @@ ui <- fluidPage(
             ########## Choose color from list
             # selectInput("colour_list", "Colour:", choices = ""),
 
-          radioButtons("adjustcolors", "Color palette:",
-                       choices = 
-                          list("Standard" = 1,
-                               "Okabe&Ito; CUD" = 6,
-                               "Tol; bright" = 2,
-                               "Tol; muted" = 3,
-                               "Tol; light" = 4,
-                               "User defined"=5),
-                           selected =  6),
-      
-              conditionalPanel(condition = "input.adjustcolors == 5",
-                 textInput("user_color_list", "Names or hexadecimal codes separated by a comma (applied to conditions in alphabetical order):", value = "turquoise2,#FF2222,lawngreen"), 
-                 
-              h5("",a("Click here for more info on color names", href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
-                 
-              ),
+
         checkboxInput(inputId = "dark", label = "Dark Theme", value = FALSE),
+      conditionalPanel(
+        condition = "input.dark == true",checkboxInput(inputId = "dark_classic", label = "Classic Dark Theme", value = FALSE)),
 
         numericInput("plot_height", "Height (# pixels): ", value = 480),
         numericInput("plot_width", "Width (# pixels):", value = 480),
@@ -352,7 +362,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
 server <- function(input, output, session) {
   observe({
-    showNotification("The SuperPlotsOfData webtool is still in development, and therefore updates may change the appearance of the plot and may have different features. Any feedback or suggestions to improve the app are highly appreciated. For contact information, see the 'About' tab", duration = 100, type = "warning")
+    showNotification("This is version 1.0.1 - beta. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab", duration = 10, type = "warning")
   })
   
 
@@ -884,11 +894,8 @@ plotdata <- reactive({
      # observe({ print(head(df_selected())) })    
     
     newColors <- NULL
-    
-    if (input$adjustcolors == 2) {
+    if (input$adjustcolors == 3) {
       newColors <- Tol_bright
-    } else if (input$adjustcolors == 3) {
-      newColors <- Tol_muted
     } else if (input$adjustcolors == 4) {
       newColors <- Tol_light
     } else if (input$adjustcolors == 6) {
@@ -898,7 +905,13 @@ plotdata <- reactive({
     }
 
 
+    
+    
         kleur <- 'Replica'
+        
+        if (input$add_shape) {
+          vorm <- 'Replica'
+        } else {vorm <- NULL}
 
   
 
@@ -936,21 +949,23 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
-      p <- p + geom_quasirandom(aes_string(x='Condition', y='Value', color = kleur), shape = 16, width=data_width, cex=3.5, alpha=input$alphaInput)
+      p <- p + geom_quasirandom(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput)
     } else if (input$jitter_type == "random") {
-      p <- p + geom_jitter(aes_string(x='Condition', y='Value', color = kleur), width=data_width*0.8, height=0.0, shape = 16, cex=3.5, alpha=input$alphaInput)
-      
+      p <- p + geom_jitter(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
     }
+    
+    #Add dotted line to depict paired replicates
     if (input$connect) {
       p <-  p + stat_summary(aes_string(group = 'Replica'), color=line_color, fun.y = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
-
-      p <-  p + stat_summary(aes_string(group = 'Replica', fill=kleur), color=line_color, fun.y = stats, geom = "point", stroke = 1, shape = 21, size = 8, alpha=input$alphaInput_summ) 
-        
     }
-    else if (!input$connect)
-    p <-  p + stat_summary(aes_string(group = 'Replica', color=kleur), fun.y = stats, geom = "point", stroke = 0, shape = 16, size = 10, alpha=input$alphaInput_summ) 
-    
 
+    #Distinguish replicates by symbol
+    if (input$add_shape)
+      p <-  p + stat_summary(aes_string(group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8, alpha=input$alphaInput_summ) 
+    if (!input$add_shape)
+      p <-  p + stat_summary(aes_string(group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8, alpha=input$alphaInput_summ) 
+
+    #Show distribution for each replicate
     if  (input$show_distribution) {
       p <- p + geom_flat_violin(aes_string(x='Condition',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
     }
@@ -959,6 +974,9 @@ plotdata <- reactive({
     
     p <- p+ theme_light(base_size = 16)
     if (input$dark) {p <- p+ theme_darker(base_size = 16)}
+    
+    if (input$dark_classic) {p <- p+ theme_dark_classic(base_size = 16)}
+
     
      # if log-scale checked specified
      if (input$scale_log_10)
@@ -1018,10 +1036,29 @@ plotdata <- reactive({
      }
      
           
-   if (input$adjustcolors >1) {
-       p <- p+ scale_color_manual(values=newColors)
-       p <- p+ scale_fill_manual(values=newColors)
+   if (input$adjustcolors == 1) {
+     
+     p <- p + scale_fill_grey(start=0.3, end=0.7)
+     p <- p + scale_color_grey(start=0.3, end=0.7)
    }
+       
+    if (input$adjustcolors == 2) {
+      
+      p <- p + scale_fill_viridis_d(begin=0.3, end=0.7)
+      p <- p + scale_color_viridis_d(begin=0.3, end=0.7)     
+    }
+    
+
+    if (input$adjustcolors > 2) {
+    #Adjust colors
+    p <- p+ scale_color_manual(values=newColors)
+    p <- p+ scale_fill_manual(values=newColors)
+    }
+    
+
+       # if (input$add_shape) {
+         p <- p + scale_shape_manual(values = c(21:25))
+       # }
     
      
      if (input$split_direction =="Horizontal") {
