@@ -7,7 +7,7 @@
 # Summary statistics are displayed with user-defined visibility (alpha)
 # A plot and a table with stats are generated
 # Several colorblind safe palettes are available
-# Ordering of the categorial data is 'as is, based on median or alphabetical
+# Ordering of the conditions is 'as is', based on median or alphabetical
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # Copyright (C) 2020  Joachim Goedhart
 # electronic mail address: j #dot# goedhart #at# uva #dot# nl
@@ -256,8 +256,8 @@ ui <- fluidPage(
 
 
         checkboxInput(inputId = "dark", label = "Dark Theme", value = FALSE),
-      conditionalPanel(
-        condition = "input.dark == true",checkboxInput(inputId = "dark_classic", label = "Classic Dark Theme", value = FALSE)),
+      # conditionalPanel(
+      #   condition = "input.dark == true",checkboxInput(inputId = "dark_classic", label = "Classic Dark Theme", value = FALSE)),
 
         numericInput("plot_height", "Height (# pixels): ", value = 480),
         numericInput("plot_width", "Width (# pixels):", value = 480),
@@ -362,7 +362,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
 server <- function(input, output, session) {
   observe({
-    showNotification("This is version 1.0.1 - beta. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab", duration = 10, type = "warning")
+    showNotification("This is version 1.0.1. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab", duration = 10, type = "warning")
   })
   
 
@@ -554,11 +554,12 @@ observe({
   updateRadioButtons(session, "summaryInput", selected = presets_vis[4])
   updateCheckboxInput(session, "connect", value = presets_vis[5])
   updateCheckboxInput(session, "show_table", value = presets_vis[6])
-  
-  #select zero
+  updateCheckboxInput(session, "add_shape", value = presets_vis[7])  
   
   updateSliderInput(session, "alphaInput_summ", value = presets_vis[8])
   updateRadioButtons(session, "ordered", selected = presets_vis[9])
+  #select zero
+  
 #  updateTabsetPanel(session, "tabs", selected = "Plot")
   }
   
@@ -579,7 +580,7 @@ observe({
     updateCheckboxInput(session, "scale_log_10", value = presets_layout[5])
      updateTextInput(session, "range", value= presets_layout[6])
      # updateCheckboxInput(session, "color_data", value = presets_layout[6])
-     # updateCheckboxInput(session, "color_stats", value = presets_layout[7])
+     updateCheckboxInput(session, "dark", value = presets_layout[7])
      updateRadioButtons(session, "adjustcolors", selected = presets_layout[8])    
      updateCheckboxInput(session, "add_legend", value = presets_layout[9])
      if (length(presets_layout)>10) {
@@ -650,8 +651,8 @@ url <- reactive({
   data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
  
  
-  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$zero, input$alphaInput_summ, input$ordered)
-  layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, "7",
+  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered)
+  layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, input$dark,
               input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
   #Hide the standard list of colors if it is'nt used
@@ -661,7 +662,7 @@ url <- reactive({
      color <- c(input$colour_list, input$user_color_list)
    }
   
-  label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_legend)
+  # label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_legend)
 
   label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_title, input$fnt_sz_labs, input$fnt_sz_ax, "", input$add_legend)
   
@@ -973,9 +974,7 @@ plotdata <- reactive({
 ########### Do some formatting of the lay-out ###########
     
     p <- p+ theme_light(base_size = 16)
-    if (input$dark) {p <- p+ theme_darker(base_size = 16)}
-    
-    if (input$dark_classic) {p <- p+ theme_dark_classic(base_size = 16)}
+    if (input$dark) {p <- p+ theme_dark_basic(base_size = 16)}
 
     
      # if log-scale checked specified

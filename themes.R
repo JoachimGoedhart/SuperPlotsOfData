@@ -60,7 +60,7 @@ theme_darker <- function(base_size = 11, base_family = "",  base_line_size = bas
   
 }
 
-theme_dark_classic <- function(base_size = 11, base_family = "",  base_line_size = base_size/22, base_rect_size = base_size/22)
+theme_dark_basic <- function(base_size = 11, base_family = "",  base_line_size = base_size/22, base_rect_size = base_size/22)
 {
   half_line <- base_size/2
   theme_light() %+replace%
@@ -98,10 +98,10 @@ theme_dark_classic <- function(base_size = 11, base_family = "",  base_line_size
           # legend.justification = "center", 
           # legend.box = NULL,
           
-          panel.background = element_rect(fill = "grey0", colour = NA),
+          panel.background = element_rect(fill = "grey5", colour = NA),
           panel.border = element_rect(fill = NA, colour = "grey80"),
-          panel.grid.major = element_line(colour = "grey40"), 
-          panel.grid.minor = element_line(colour = "grey40", size = 0.25), 
+          panel.grid.major = element_line(colour = "grey30"), 
+          panel.grid.minor = element_line(colour = "grey30", size = 0.25), 
           # panel.margin = unit(half_line, "pt"),
           # panel.margin.x = NULL, 
           # panel.margin.y = NULL,
