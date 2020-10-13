@@ -1,8 +1,8 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# SuperPlotsOfData: Shiny app for plotting and comparing data from different replicas
+# SuperPlotsOfData: Shiny app for plotting and comparing data from different replicates
 # Created by Joachim Goedhart (@joachimgoedhart), first version 2020
 # Uses tidy data as input with a column that defines conditions and a column with measured values
-# A third column can be selected that indicates the replicas (as numbers or other unique strings)
+# A third column can be selected that indicates the replicates (as numbers or other unique strings)
 # Raw data is displayed with user-defined visibility (alpha)
 # Summary statistics are displayed with user-defined visibility (alpha)
 # A plot and a table with stats are generated
@@ -43,6 +43,7 @@ library(broom)
 
 source("geom_flat_violin.R")
 source("themes.R")
+source("function_tidy_df.R")
 
 ###### Functions ##########
 
@@ -93,7 +94,7 @@ vals <- reactiveValues(count=0)
 
 ui <- fluidPage(
   
-  titlePanel("SuperPlotsOfData - Plots Data and its Replicas"),
+  titlePanel("SuperPlotsOfData - Plots Data and its Replicates"),
   sidebarLayout(
     sidebarPanel(width=3,
                  
@@ -104,21 +105,22 @@ ui <- fluidPage(
                      "data_input", "",
                      choices = 
                        list(
-                          "Example data (tidy format)" = 1,
-                         "Example data (combined.csv)" = 2,
+                          # "Example data (tidy format)" = 1,
+                         "Example data (tidy)" = 1,
+                         # "Example data (wide)" = 2,
                          "Upload file" = 3,
                          "Paste data" = 4,
                          "URL (csv files only)" = 5
                        )
                      ,
-                     selected =  2),
+                     selected =  1),
                    conditionalPanel(
-                     condition = "input.data_input=='1'"
+                     condition = "input.data_input=='2'"
                      
                    ),
                    conditionalPanel(
-                     condition = "input.data_input=='2'",
-                     p("Dataset combined.csv from the SuperPlots paper") 
+                     condition = "input.data_input=='1'",
+                     p("Data S1 published in the original SuperPlots paper:"),a("https://doi.org/10.1083/jcb.202001064", href="https://doi.org/10.1083/jcb.202001064") 
                    ),
                    conditionalPanel(
                      condition = "input.data_input=='3'",
@@ -168,10 +170,25 @@ ui <- fluidPage(
                      NULL
                    ),
                    
-                   selectInput("x_var", "Conditions to compare:", choices = "Treatment", selected="Treatment"),
-                   selectInput("y_var", "Variables:", choices = "Speed", selected="Speed"),
-                   selectInput("g_var", "Groups/Replicas:", choices = list("Replicate", "-"), selected="Replicate"),
+                   hr(),
+                   checkboxInput(inputId = "toggle_tidy", label = "Convert to tidy", value = FALSE),
+                   conditionalPanel(
+                     condition = "input.toggle_tidy==true",
+                     
+                     ########### Ask for number of rows and labels (optional) ############
+                     numericInput("n_conditions", "Number of rows that specify parameters:", value = 1,min = 1,max=10,step = 1),
+                     textInput("labels", "Labels for parameters (separated by comma):", value = ""),
+                     
+                     NULL),
                    
+                   hr(),
+                   selectInput("x_var", "Conditions to compare:", choices = "Treatment", selected="Treatment"),
+                   checkboxInput(inputId = "x_cont",
+                                 label = "Continuous data",
+                                 value = FALSE), 
+                   selectInput("y_var", "Variables:", choices = "Speed", selected="Speed"),
+                   selectInput("g_var", "Groups/Replicates:", choices = list("Replicate", "-"), selected="Replicate"),
+                  
                    hr(),
                    
                    checkboxInput(inputId = "info_data",
@@ -180,8 +197,9 @@ ui <- fluidPage(
                    
                    conditionalPanel(
                      condition = "input.info_data==true",
-                    p("The data needs to be organized in 'tidy' format, in which each variable is a column. This means that all measured values must be present in a single column ('Speed' in the example data). The labels for the conditions are present in another column ('Treatment' in the example data). When different replicates are present, this information is stored in a third column ('Replicate' in the example data). The selection of a column with replicates is optional. The order of the columns is arbitrary. For more information on the tidy format, see:"),
-                    a("A basic tutorial for converting wide data to tidy format", href = "http://thenode.biologists.com/converting-excellent-spreadsheets-tidy-data/education/"),br(),
+                    p("The data has to be organized in a 'tidy' format. This means that all measured values must be present in a single column ('Speed' in the example data). The labels for the conditions are present in another column ('Treatment' in the example data). When different replicates are present, this information is stored in a third column ('Replicate' in the example data). The selection of a column with replicates is optional. The order of the columns is arbitrary. For more information, see:"),
+                    a("A tutorial on preparing data for superplots", href = "https://thenode.biologists.com/converting-excellent-spreadsheets-part2"),br(),
+                    a("A basic intro on converting spreadsheet data", href = "http://thenode.biologists.com/converting-excellent-spreadsheets-tidy-data/education/"),br(),
                     a("The original paper by Hadley Wickham 'Tidy data'", href = "http://dx.doi.org/10.18637/jss.v059.i10")
                     
                    ),
@@ -227,7 +245,7 @@ ui <- fluidPage(
                          h5("",a("Click here for more info on color names", href = "http://www.endmemo.com/program/R/color.php", target="_blank"))
                          
         ),
-        selectInput("split_direction", label = "Split replicas:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
+        selectInput("split_direction", label = "Split replicates:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
         
         
         h4("Plot Layout"),
@@ -349,7 +367,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
                   ), 
                   tabPanel("Data Summary",
                            h3("Statistics for individual replicates"),dataTableOutput('data_summary'),
-                           h3("Statistics for conditions"),dataTableOutput('data_summary_cluster') , 
+                           h3("Statistics for conditions"),dataTableOutput('data_summary_condition') , 
                            h3("Statistics for differences between conditions"),dataTableOutput('data_difference')
                            ),
                   tabPanel("About", includeHTML("about.html")
@@ -376,12 +394,12 @@ server <- function(input, output, session) {
 
 df_upload <- reactive({
     
-    if (input$data_input == 1) {
+    if (input$data_input == 2) {
       data <- df_tidy_example2
       x_var.selected <<- "Condition"
       y_var.selected <<- "Activity"
       g_var.selected <<- "Replicate" 
-    }  else if (input$data_input == 2) {
+    }  else if (input$data_input == 1) {
         data <- df_tidy_example
         x_var.selected <<- "Treatment"
         y_var.selected <<- "Speed"
@@ -395,16 +413,44 @@ df_upload <- reactive({
       # Avoid error message while file is not uploaded yet
       if (is.null(input$upload)) {
         return(data.frame(x = "Select your datafile"))
-      } else if (input$submit_datafile_button == 0) {
-        return(data.frame(x = "Press 'submit datafile' button"))
+      # } else if (input$submit_datafile_button == 0) {
+      #   return(data.frame(x = "Press 'submit datafile' button"))
       } else {
-        isolate({
-          if (input$file_type == "text") {
+        # isolate({
+        
+        #### Read Tidy Data #####
+        if (input$toggle_tidy == FALSE) {
+            if (input$file_type == "text") {
+            
             data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
-          } else if (input$file_type == "Excel") {
-            data <- read_excel(file_in$datapath)
-          } 
-        })
+            } else if (input$file_type == "Excel") {
+              data <- read_excel(file_in$datapath)
+            } 
+          
+        #### Read wide Data and convert #####
+        } else if (input$toggle_tidy == TRUE) {
+          
+            if (input$file_type == "text") {
+            df <- read.csv(file=file_in$datapath,
+                           sep = input$upload_delim, header = FALSE, stringsAsFactors = FALSE)
+            } else if (input$file_type == "Excel") {
+              df <- read_excel(file_in$datapath, col_names = FALSE)
+            } 
+            
+            labels <- gsub("\\s","", strsplit(input$labels,",")[[1]])
+            data <- tidy_df(df, n = input$n_conditions, labels = labels)
+        }
+        
+        
+        
+        
+        
+          # if (input$file_type == "text") {
+          #   data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
+          # } else if (input$file_type == "Excel") {
+          #   data <- read_excel(file_in$datapath)
+          # } 
+        # })
       }
     } else if (input$data_input == 5) {
       
@@ -426,11 +472,19 @@ df_upload <- reactive({
         if (input$submit_data_button == 0) {
           return(data.frame(x = "Press 'submit data' button"))
         } else {
-          isolate({
+          # isolate({
+            if (input$toggle_tidy == FALSE) {
             data <- read_delim(input$data_paste,
                                delim = input$text_delim,
                                col_names = TRUE)
-          })
+            } else if (input$toggle_tidy == TRUE) {
+              df <- read_delim(input$data_paste,
+                                 delim = input$text_delim,
+                                 col_names = FALSE)
+              labels <- gsub("\\s","", strsplit(input$labels,",")[[1]])
+              data <- tidy_df(df, n = input$n_conditions, labels = labels)
+            }
+          # })
         }
       }
     }
@@ -794,7 +848,7 @@ output$data_uploaded <- renderDataTable(
 
 ########### Caluclate summary stats for each REPLICATE ############
 
-df_summary_replica <- reactive({
+df_summ_per_replica <- reactive({
   koos <- df_selected()
 
   koos %>%
@@ -938,11 +992,19 @@ plotdata <- reactive({
     
 ############## GENERATE PLOT LAYERS #############
 
+    #########################  For continuous x-axis variables
+    if (input$x_cont) {
+      klaas$Condition <- as.numeric(as.character(klaas$Condition))
+    }    
+
     
+    #########################
     p <- ggplot(data=klaas, aes_string(x='Condition', y='Value')) 
     
-    # Setting the order of the x-axis
-    p <- p + scale_x_discrete(limits=custom_order)
+    if (!input$x_cont) {
+      # Setting the order of the x-axis
+      p <- p + scale_x_discrete(limits=custom_order)
+    }   
     
     data_width = 0.4
     
@@ -951,7 +1013,7 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
-      p <- p + geom_quasirandom(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput)
+      p <- p + geom_quasirandom(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
       p <- p + geom_jitter(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
     }
@@ -1102,7 +1164,7 @@ df_filtered_stats <- reactive({
   digits <- as.numeric(input$digits)
   
   #Combine the numbers from the 95% CI for the mean to show the interval
-  klaas <- df_summary_replica() 
+  klaas <- df_summ_per_replica() 
   # %>% mutate(mean_CI_lo = round(mean_CI_lo, digits), mean_CI_hi = round(mean_CI_hi, digits)) %>% unite("95CI mean", c("mean_CI_lo","mean_CI_hi"), sep=" , ")
 
 
@@ -1124,22 +1186,16 @@ df_filtered_stats <- reactive({
 
 df_difference <- reactive({
 
-  if (input$summaryInput =="median")  {
-  df <- df_summary_replica() %>% rename(Value=median)
-  } else if (input$summaryInput =="mean") {
-  df <- df_summary_replica() %>% rename(Value=mean)}
-  
-  df_cluster <- df_summary_cluster()
-  if (max(df_cluster$n == 1)) {
-    df <- df_selected()}
+  df <- df_selected()
 
-  # df_summary <- df %>% group_by(Condition) %>% summarise(n = n(),
-  #                                                mean = mean(Value))
-  
-  # observe({print(head(df))})
+  ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
+  if (length(unique(df$Replica)) > 1) {
+    if (input$summaryInput =="median")  {
+      df <- df_summ_per_replica() %>% rename(Value=median)
+    } else if (input$summaryInput =="mean") {
+      df <- df_summ_per_replica() %>% rename(Value=mean)}
+  }
 
-  # df <- df %>% ungroup()
-  
   # select the control condition for comparisons
   control_condition <- input$zero
   
@@ -1147,34 +1203,36 @@ df_difference <- reactive({
   df_controls <- df %>% filter(Condition==!!control_condition)
   df_controls <- df_controls %>% select(Replica, control_value = Value, cond = Condition)
 
-  
-  
   #Remove the Reference from the dataframe and add the reference values to a new column
-  df_diff <- df %>% filter (Condition!=!!control_condition) %>% select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica')  %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
+  df_diff <- df %>% 
+    filter (Condition != !!control_condition) %>% 
+    select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica')  %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
 
+  # Generate a dataframe that summarizes the differences between the control condition and others.
   df_difference <- df_diff  %>% 
     group_by(Condition) %>% do(tidy(t.test(.$Value, .$control_value, paired = input$connect)))
   
-  observe({print(df_difference)})  
+  # observe({print(df_difference)})  
   
   df_difference <- df_difference  %>% select(Condition, difference=estimate, `95%CI_lo`=conf.low, `95%CI_hi`=conf.high,p.value)
   
   df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 8)
   
-  observe({print(df_difference$p.value)})
-  
   #Use scientific notation if smaller than 0.001
-  if (df_difference$p.value<0.001) {
+  if (df_difference$p.value<0.001 && df_difference$p.value>=1e-10) {
   df_difference$p.value  <- formatC(df_difference$p.value, format = "e", digits = 2)
+  #Any p-value lower than 1e-10 is noted as <1e-10
+  } else if (df_difference$p.value<1e-10) {
+    df_difference$p.value <- "<1e-10"
   }
 
   return(df_difference)
   
 })
 
-df_summary_cluster <- reactive({
+df_summary_condition <- reactive({
   
-  df <- df_summary_replica()
+  df <- df_summ_per_replica()
   df$Value <- df$mean
   df <- df %>% group_by(Condition) %>% summarise(n = n(),
                                                  mean = mean(Value),
@@ -1236,9 +1294,9 @@ output$data_summary <- renderDataTable(
 
 #### Render the data summary as a table ###########
 
-output$data_summary_cluster <- renderDataTable(
+output$data_summary_condition <- renderDataTable(
   datatable(
-    df_summary_cluster(),
+    df_summary_condition(),
     #  colnames = c(ID = 1),
     selection = 'none',
     extensions = c('Buttons', 'ColReorder'),
