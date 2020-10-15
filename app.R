@@ -209,25 +209,29 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.tabs=='Plot'",
         
-        radioButtons(inputId = "jitter_type", label = "Data offset", choices = list("Quasirandom" = "quasirandom", "Random" = "random"), selected = "quasirandom"),
-        
-        checkboxInput(inputId = "show_distribution", label = "Display data distribution", value = FALSE),
+        radioButtons(inputId = "jitter_type", label = "Data display", choices = list("Data & distribution" = "quasirandom", "Jittered data" = "random", "Distribution only"="violin"), selected = "quasirandom"),
         
         sliderInput(inputId = "alphaInput", label = "Visibility of the data", 0, 1, 0.7),
 
-        radioButtons(inputId = "summaryInput", label = "Summary statistics for replicates:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
+        radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
+        radioButtons(inputId = "summary_condition", label = "Statistics per condtion:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
+        
+        conditionalPanel(condition = "input.summary_condition != 'none'",
+            sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1)
+        ),
         
         
         checkboxInput(inputId = "show_table", label = "Display table with effect size", value = FALSE),
         
           conditionalPanel(condition = "input.show_table == true", selectInput("zero", "Select reference condition:", choices = "")),
 
-        sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1),
         
         h4("Formatting of Replicates"),
         checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
         
         checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
+        
+        checkboxInput(inputId = "show_distribution", label = "Distribution per replicate", value = FALSE),
         
         radioButtons("adjustcolors", "By color:",
                      choices = 
@@ -265,7 +269,7 @@ ui <- fluidPage(
 
       # checkboxInput(inputId = "add_CI", label = HTML("Add 95% CI <br/> (minimum n=10)"), value = FALSE),
       # conditionalPanel(
-      #   condition = "input.add_CI == true && input.summaryInput !='box'",
+      #   condition = "input.add_CI == true && input.summary_replicate !='box'",
       #   checkboxInput(inputId = "ugly_errors", label = "Classic error bars", value = FALSE)),
 
 
@@ -605,7 +609,7 @@ observe({
   updateRadioButtons(session, "jitter_type", selected = presets_vis[1])
   updateCheckboxInput(session, "show_distribution", value = presets_vis[2])
   updateSliderInput(session, "alphaInput", value = presets_vis[3])
-  updateRadioButtons(session, "summaryInput", selected = presets_vis[4])
+  updateRadioButtons(session, "summary_replicate", selected = presets_vis[4])
   updateCheckboxInput(session, "connect", value = presets_vis[5])
   updateCheckboxInput(session, "show_table", value = presets_vis[6])
   updateCheckboxInput(session, "add_shape", value = presets_vis[7])  
@@ -705,7 +709,7 @@ url <- reactive({
   data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
  
  
-  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summaryInput, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered)
+  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summary_replicate, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered)
   layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, input$dark,
               input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
@@ -935,7 +939,7 @@ plotdata <- reactive({
 ####### Read the order from the ordered dataframe #############  
     koos <- df_sorted()
     
-    stats <- as.character(input$summaryInput)
+    stats <- as.character(input$summary_replicate)
     
 #   observe({ print(koos) })
     
@@ -974,7 +978,7 @@ plotdata <- reactive({
     klaas <- df_selected() 
     klaas <- as.data.frame(klaas)
 
-    
+    kees <- df_summary_condition()
 
     #### Used to convert integers to factors, compatible with a discrete color scale
     klaas[,kleur] <- as.factor(klaas[,kleur])
@@ -999,7 +1003,7 @@ plotdata <- reactive({
 
     
     #########################
-    p <- ggplot(data=klaas, aes_string(x='Condition', y='Value')) 
+    p <- ggplot(data=klaas, aes_string(x='Condition')) 
     
     if (!input$x_cont) {
       # Setting the order of the x-axis
@@ -1013,25 +1017,38 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
-      p <- p + geom_quasirandom(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput, groupOnX=TRUE)
+      p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
-      p <- p + geom_jitter(aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
+      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
+    } else if (input$jitter_type == "violin") {
+      p <- p + geom_violin(data=klaas, aes_string(x='Condition', y='Value', group='Condition'),width=data_width*2, fill='grey50', color=NA, alpha=input$alphaInput)
+    }
+    
+    if (input$summary_condition=="mean_SD") {
+      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = kees, aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+    }
+    
+    if (input$summary_condition=="mean_CI") {
+      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ) 
+      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean_CI_lo", ymax="mean_CI_hi"), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ) 
+      
     }
     
     #Add dotted line to depict paired replicates
     if (input$connect) {
-      p <-  p + stat_summary(aes_string(group = 'Replica'), color=line_color, fun.y = stats, geom = "line", size = 1, alpha=input$alphaInput_summ, linetype='dotted') 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'), color=line_color, fun.y = stats, geom = "line", size = 1, linetype='dotted') 
     }
 
     #Distinguish replicates by symbol
     if (input$add_shape)
-      p <-  p + stat_summary(aes_string(group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8, alpha=input$alphaInput_summ) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8) 
     if (!input$add_shape)
-      p <-  p + stat_summary(aes_string(group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8, alpha=input$alphaInput_summ) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8) 
 
     #Show distribution for each replicate
     if  (input$show_distribution) {
-      p <- p + geom_flat_violin(aes_string(x='Condition',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
+      p <- p + geom_flat_violin(data=klaas, aes_string(x='Condition', y='Value',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
     }
     
 ########### Do some formatting of the lay-out ###########
@@ -1190,9 +1207,9 @@ df_difference <- reactive({
 
   ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
   if (length(unique(df$Replica)) > 1) {
-    if (input$summaryInput =="median")  {
+    if (input$summary_replicate =="median")  {
       df <- df_summ_per_replica() %>% rename(Value=median)
-    } else if (input$summaryInput =="mean") {
+    } else if (input$summary_replicate =="mean") {
       df <- df_summ_per_replica() %>% rename(Value=mean)}
   }
 
@@ -1232,20 +1249,28 @@ df_difference <- reactive({
 
 df_summary_condition <- reactive({
   
-  df <- df_summ_per_replica()
-  df$Value <- df$mean
+  df <- df_selected()
+  
+  ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
+  if (length(unique(df$Replica)) > 1) {
+    if (input$summary_replicate =="median")  {
+      df <- df_summ_per_replica() %>% rename(Value=median)
+    } else if (input$summary_replicate =="mean") {
+      df <- df_summ_per_replica() %>% rename(Value=mean)}
+  }
+
   df <- df %>% group_by(Condition) %>% summarise(n = n(),
                                                  mean = mean(Value),
                                                  sd = sd(Value))  %>%
     mutate(sem = sd / sqrt(n - 1),
-           # mean_CI_lo = mean + qt((1-Confidence_level)/2, n - 1) * sem,
-           # mean_CI_hi = mean - qt((1-Confidence_level)/2, n - 1) * sem,
+           mean_CI_lo = mean + qt((1-Confidence_level)/2, n - 1) * sem,
+           mean_CI_hi = mean - qt((1-Confidence_level)/2, n - 1) * sem,
            NULL)
   
   # observe({print(df_stats)})
   
   
-  df <- df %>% mutate_at(c(3:5), round, input$digits)
+  df <- df %>% mutate_at(c(3:7), round, input$digits)
   
   # observe({print(df)})
   return(df)
@@ -1255,11 +1280,11 @@ df_summary_condition <- reactive({
 
 #### A predefined selection of stats for the table  ###########
 
-observeEvent(input$summaryInput, {
-  if (input$summaryInput=="mean")  {
+observeEvent(input$summary_replicate, {
+  if (input$summary_replicate=="mean")  {
     updateSelectInput(session, "stats_select", selected = list("mean", "sd", '95CI mean', 'p(Shapiro-Wilk)'))
   }
-  else if (input$summaryInput=="median")  {
+  else if (input$summary_replicate=="median")  {
     updateSelectInput(session, "stats_select", selected = list("median", "MAD"))
   }
 
