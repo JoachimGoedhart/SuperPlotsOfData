@@ -332,11 +332,11 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.tabs=='Data Summary'",
         h4("Data summary") ,
-        checkboxGroupInput("stats_select", label = h5("Statistics for replicates:"), 
-                           choices = list("mean", "sd", "sem","95CI mean", 'p(Shapiro-Wilk)', "median", "MAD", "IQR", "Q1", "Q3"),
-                           selected = "sem"),
-        actionButton('select_all1','select all'),
-        actionButton('deselect_all1','deselect all'),
+        # checkboxGroupInput("stats_select", label = h5("Statistics for replicates:"), 
+        #                    choices = list("mean", "sd", "sem","95CI mean", 'p(Shapiro-Wilk)', "median", "MAD", "IQR", "Q1", "Q3"),
+        #                    selected = "sem"),
+        # actionButton('select_all1','select all'),
+        # actionButton('deselect_all1','deselect all'),
         numericInput("digits", "Digits:", 2, min = 0, max = 5),
         hr(),
 
@@ -468,6 +468,8 @@ df_upload <- reactive({
     
       #Read the data from textbox
     } else if (input$data_input == 4) {
+      y_var.selected <<- "none"
+      g_var.selected <<- "-" 
       if (input$data_paste == "") {
         data <- data.frame(x = "Copy your data into the textbox,
                            select the appropriate delimiter, and
@@ -558,6 +560,33 @@ observeEvent(input$add_bar, {
   } else if (input$add_bar==FALSE)  {
     updateSliderInput(session, "alphaInput", min=0, max=1)
     
+  }
+})
+
+observeEvent(input$tabs, {
+  if (input$tabs=='Data Summary')  {
+    df <- df_summ_per_replica()
+    # Get the list of p-values
+    p <- (df[,10]) %>% unlist(use.names = F)
+    # Determine the fraction of p-values that is significant, based on a threshold of 0.05
+    fraction_significant <- length(which(p<0.05))/length(p)
+    if (fraction_significant>0.5) {
+
+    showNotification("The majority of replicates has a distribution that deviates from normality, as inferred from a p< 0.05 from a Shapiro-wilk test. Consider using the median as a measure of location for the replicates", duration = 10, type = "error")
+    }
+  }
+})
+
+
+observeEvent(input$connect, {
+  if (input$connect==TRUE)  {
+    showNotification("Connecting or 'pairing' the data changes the p-value", duration = 10, type = "message")
+  }
+})
+
+observeEvent(input$summary_replicate, {
+  if (input$summary_replicate=="median")  {
+    showNotification("Selecting the median as the measure of location for the replicates changes the p-value", duration = 10, type = "message")
   }
 })
 
@@ -853,26 +882,22 @@ output$data_uploaded <- renderDataTable(
 ########### Caluclate summary stats for each REPLICATE ############
 
 df_summ_per_replica <- reactive({
-  koos <- df_selected()
 
-  koos %>%
+  koos <- df_selected() %>%
     group_by(Condition, Replica) %>% 
     summarise(n = n(),
             mean = mean(Value, na.rm = TRUE),
             sd = sd(Value, na.rm = TRUE),
-            'p(Shapiro-Wilk)' = f(Value),
             median= median(Value, na.rm = TRUE),
-            MAD= mad(Value, na.rm = TRUE, constant=1),
-            IQR= IQR(Value, na.rm = TRUE),
-            Q1=quantile(Value, probs=0.25),
-            Q3=quantile(Value, probs=0.75)) %>%
+            'p(Shapiro-Wilk)' = f(Value)) %>%
       mutate(sem = sd / sqrt(n - 1),
-             `95%CI_lo` = mean + qt((1-Confidence_level)/2, n - 1) * sem,
-             `95%CI_hi` = mean - qt((1-Confidence_level)/2, n - 1) * sem)
-
-  })
+             '95%CI_lo' = mean + qt((1-Confidence_level)/2, n - 1) * sem,
+             '95%CI_hi' = mean - qt((1-Confidence_level)/2, n - 1) * sem)
 
 
+
+   koos <- koos %>% select(Replica,n,mean,sd,sem,'95%CI_lo','95%CI_hi',median,'p(Shapiro-Wilk)') %>% mutate_at(c(3:9), round, input$digits) %>% mutate_at(10,round,3)
+})
 ######### DEFINE DOWNLOAD BUTTONS ###########
 
 ##### Set width and height of the plot area
@@ -978,8 +1003,6 @@ plotdata <- reactive({
     klaas <- df_selected() 
     klaas <- as.data.frame(klaas)
 
-    kees <- df_summary_condition()
-
     #### Used to convert integers to factors, compatible with a discrete color scale
     klaas[,kleur] <- as.factor(klaas[,kleur])
 
@@ -1025,13 +1048,13 @@ plotdata <- reactive({
     }
     
     if (input$summary_condition=="mean_SD") {
-      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
-      p <-  p + geom_errorbar(data = kees, aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
     
     if (input$summary_condition=="mean_CI") {
-      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ) 
-      p <-  p + geom_errorbar(data = kees, aes_string(x='Condition', ymin="mean_CI_lo", ymax="mean_CI_hi"), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ) 
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ) 
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin='`95%CI_lo`', ymax='`95%CI_hi`'), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ) 
       
     }
     
@@ -1263,8 +1286,8 @@ df_summary_condition <- reactive({
                                                  mean = mean(Value),
                                                  sd = sd(Value))  %>%
     mutate(sem = sd / sqrt(n - 1),
-           mean_CI_lo = mean + qt((1-Confidence_level)/2, n - 1) * sem,
-           mean_CI_hi = mean - qt((1-Confidence_level)/2, n - 1) * sem,
+           `95%CI_lo` = mean + qt((1-Confidence_level)/2, n - 1) * sem,
+           `95%CI_hi` = mean - qt((1-Confidence_level)/2, n - 1) * sem,
            NULL)
   
   # observe({print(df_stats)})
@@ -1304,7 +1327,7 @@ observeEvent(input$deselect_all1, {
 
 output$data_summary <- renderDataTable(
  datatable(
-  df_filtered_stats(),
+   df_summ_per_replica(),
 #  colnames = c(ID = 1),
   selection = 'none',
   extensions = c('Buttons', 'ColReorder'),
