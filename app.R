@@ -125,26 +125,35 @@ ui <- fluidPage(
                    conditionalPanel(
                      condition = "input.data_input=='3'",
                      h5("Upload file: "),
-                     fileInput("upload", "", multiple = FALSE),
-                     selectInput("file_type", "Type of file:",
-                                 list("text (csv)" = "text",
-                                      "Excel" = "Excel"
-                                 ),
-                                 selected = "text"),
-                     conditionalPanel(
-                       condition = "input.file_type=='text'",
-                       
-                       radioButtons(
-                         "upload_delim", "Delimiter",
-                         choices = 
-                           list("Comma" = ",",
-                                "Tab" = "\t",
-                                "Semicolon" = ";",
-                                "Space" = " "),
-                         selected = ",")),
+                     fileInput("upload", NULL, multiple = FALSE, accept = c(".xlsx", ".xls", ".txt", ".csv")),
+                     # selectInput("file_type", "Type of file:",
+                     #             list("text (csv)" = "text",
+                     #                  "Excel" = "Excel"
+                     #             ),
+                     #             selected = "text"),
                      
-                     actionButton("submit_datafile_button",
-                                  "Submit datafile")),
+                     selectInput("upload_delim", label = "Select Delimiter (for text file):", choices =list("Comma" = ",",
+                                                                                                            "Tab" = "\t",
+                                                                                                            "Semicolon" = ";",
+                                                                                                            "Space" = " "))),
+                     
+                     
+                     # selectInput("sheet", label = "Select sheet (for excel workbook):", choices = " "),
+                     
+                     # conditionalPanel(
+                     #   condition = "input.file_type=='text'",
+                     #   
+                     #   radioButtons(
+                     #     "upload_delim", "Delimiter",
+                     #     choices = 
+                     #       list("Comma" = ",",
+                     #            "Tab" = "\t",
+                     #            "Semicolon" = ";",
+                     #            "Space" = " "),
+                     #     selected = ",")),
+                     # 
+                     # actionButton("submit_datafile_button",
+                     #              "Submit datafile")),
                    conditionalPanel(
                      condition = "input.data_input=='4'",
                      h5("Paste data below:"),
@@ -339,6 +348,7 @@ ui <- fluidPage(
         # actionButton('deselect_all1','deselect all'),
         numericInput("digits", "Digits:", 2, min = 0, max = 5),
         hr(),
+        htmlOutput("legend", width="200px", inline =FALSE),
 
 
 #        ,
@@ -352,7 +362,7 @@ ui <- fluidPage(
                   tabPanel("Data upload", h4("Data as provided"),
                   dataTableOutput("data_uploaded")),
                   tabPanel("Plot", downloadButton("downloadPlotPDF", "Download pdf-file"),
-                           # downloadButton("downloadPlotSVG", "Download svg-file"), 
+                           downloadButton("downloadPlotSVG", "Download svg-file"),
                            # downloadButton("downloadPlotEPS", "Download eps-file"), 
                            downloadButton("downloadPlotPNG", "Download png-file"), 
                            actionButton("settings_copy", icon = icon("clone"),
@@ -372,7 +382,8 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
                   tabPanel("Data Summary",
                            h3("Statistics for individual replicates"),dataTableOutput('data_summary'),
                            h3("Statistics for conditions"),dataTableOutput('data_summary_condition') , 
-                           h3("Statistics for differences between conditions"),dataTableOutput('data_difference')
+                           h3("Statistics for differences between conditions"),dataTableOutput('data_difference'),
+                           NULL
                            ),
                   tabPanel("About", includeHTML("about.html")
                            )
@@ -383,11 +394,13 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
 
 server <- function(input, output, session) {
+
+  
   observe({
     showNotification("The app (and paper) are currently undergoing revision, which means that small changes may occur (the earlier v1.0.1 is archived at Zenodo, doi: 10.5281/zenodo.4018039). Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
   })
   
-
+  fraction_significant <- 0
   x_var.selected <- "Treatment"
   y_var.selected <- "Speed"
   g_var.selected <- "Replicate"
@@ -416,45 +429,46 @@ df_upload <- reactive({
       file_in <- input$upload
       # Avoid error message while file is not uploaded yet
       if (is.null(input$upload)) {
-        return(data.frame(x = "Select your datafile"))
+        return(data.frame(x = "Click 'Browse...' to select a datafile or drop file onto 'Browse' button"))
       # } else if (input$submit_datafile_button == 0) {
       #   return(data.frame(x = "Press 'submit datafile' button"))
       } else {
+        
+        filename_split <- strsplit(file_in$datapath, '[.]')[[1]]
+        fileext <- tolower(filename_split[length(filename_split)])
+        # if (fileext=="xls" || fileext=="xlsx") {
+        #   updateSelectInput(session, 'selectInput', selected = 'Excel')
+        # }
+        
+        
+        
+        
+        
         # isolate({
         
         #### Read Tidy Data #####
         if (input$toggle_tidy == FALSE) {
-            if (input$file_type == "text") {
-            
-            data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
-            } else if (input$file_type == "Excel") {
-              data <- read_excel(file_in$datapath)
-            } 
+
+
+              if (fileext=="xls" || fileext=="xlsx") {
+                  data <- read_excel(file_in$datapath)
+              } else if (fileext == "txt" || fileext=="csv") {
+                  data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
+              } 
           
         #### Read wide Data and convert #####
         } else if (input$toggle_tidy == TRUE) {
           
-            if (input$file_type == "text") {
-            df <- read.csv(file=file_in$datapath,
-                           sep = input$upload_delim, header = FALSE, stringsAsFactors = FALSE)
-            } else if (input$file_type == "Excel") {
-              df <- read_excel(file_in$datapath, col_names = FALSE)
+            if (fileext == "txt" || fileext=="csv") {
+                df <- read.csv(file=file_in$datapath, sep = input$upload_delim, header = FALSE, stringsAsFactors = FALSE)
+            } else if (fileext=="xls" || fileext=="xlsx") {
+                df <- read_excel(file_in$datapath, col_names = FALSE)
             } 
             
             labels <- gsub("\\s","", strsplit(input$labels,",")[[1]])
             data <- tidy_df(df, n = input$n_conditions, labels = labels)
         }
         
-        
-        
-        
-        
-          # if (input$file_type == "text") {
-          #   data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
-          # } else if (input$file_type == "Excel") {
-          #   data <- read_excel(file_in$datapath)
-          # } 
-        # })
       }
     } else if (input$data_input == 5) {
       
@@ -569,8 +583,8 @@ observeEvent(input$tabs, {
     # Get the list of p-values
     p <- (df[,10]) %>% unlist(use.names = F)
     # Determine the fraction of p-values that is significant, based on a threshold of 0.05
-    fraction_significant <- length(which(p<0.05))/length(p)
-    if (fraction_significant>0.5) {
+    fraction_significant <<- length(which(p<0.05))/length(p)
+    if (fraction_significant>0.5 && input$summary_replicate =='mean') {
 
     showNotification("The majority of replicates has a distribution that deviates from normality, as inferred from a p< 0.05 from a Shapiro-wilk test. Consider using the median as a measure of location for the replicates", duration = 10, type = "error")
     }
@@ -1380,7 +1394,31 @@ output$toptable <- renderTable({
   
 })
 
-
+output$legend <- renderText({
+  
+  
+  
+  HTML_Legend <- c('<h4>Explanation of the statistics</h4>')
+  HTML_Legend <- append(HTML_Legend, paste('<p>A high p-value for the Shapiro-Wilk test for normality suggests that the data distribution is normal.', sep=""))
+                                           
+   if (fraction_significant>0.5 && input$summary_replicate == 'mean') {
+     HTML_Legend <- append(HTML_Legend, paste('Since the majority of the replicates shows a low p-value, consider using the median instead of the mean as a summary of the replicates.</br>', sep=""))
+   }                                         
+    HTML_Legend <- append(HTML_Legend, paste('<p>The <b>',input$summary_replicate,'</b> is used as a summary of the replicates.</br>', sep=""))
+  
+    if (input$connect==T) {
+      HTML_Legend <- append(HTML_Legend, paste('<p>The biological replicates are treated as paired. A paired t-test is performed to calculate the p-value for the comparison of the conditions', sep=""))
+    } else if (input$connect==F) {
+      HTML_Legend <- append(HTML_Legend, paste("<p>The biological replicates are not treated as paired. A Welch's t-test is performed to calculate the p-value for the comparison of the conditions", sep=""))
+      
+    }
+    
+    
+})
+  
+  
+  
+  
 
 
       ########### Update count #########
