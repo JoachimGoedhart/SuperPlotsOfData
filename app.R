@@ -380,9 +380,9 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
 
                   ), 
                   tabPanel("Data Summary",
-                           h3("Statistics for individual replicates"),dataTableOutput('data_summary'),
-                           h3("Statistics for conditions"),dataTableOutput('data_summary_condition') , 
-                           h3("Statistics for differences between conditions"),dataTableOutput('data_difference'),
+                           h3("Table 1: Statistics for individual replicates"),dataTableOutput('data_summary'),
+                           h3("Table 2: Statistics for conditions"),dataTableOutput('data_summary_condition') , 
+                           h3("Table 3: Statistics for differences between conditions"),dataTableOutput('data_difference'),
                            NULL
                            ),
                   tabPanel("About", includeHTML("about.html")
@@ -594,13 +594,13 @@ observeEvent(input$tabs, {
 
 observeEvent(input$connect, {
   if (input$connect==TRUE)  {
-    showNotification("Connecting or 'pairing' the data changes the p-value", duration = 10, type = "message")
+    showNotification("Connecting or 'pairing' the data changes the p-value and the 95% confidence interval for the difference", duration = 10, type = "message")
   }
 })
 
 observeEvent(input$summary_replicate, {
   if (input$summary_replicate=="median")  {
-    showNotification("Selecting the median as the measure of location for the replicates changes the p-value", duration = 10, type = "message")
+    showNotification("Selecting the median as the measure of location for the replicates changes the p-value and the difference", duration = 10, type = "message")
   }
 })
 
@@ -1399,19 +1399,25 @@ output$legend <- renderText({
   
   
   HTML_Legend <- c('<h4>Explanation of the statistics</h4>')
-  HTML_Legend <- append(HTML_Legend, paste('<p>A high p-value for the Shapiro-Wilk test for normality suggests that the data distribution is normal.', sep=""))
+  HTML_Legend <- append(HTML_Legend, paste('<p>Table 1: Summary of the statistics for each of the replicates. A high p-value for the Shapiro-Wilk test for normality suggests that the data distribution is normal.</p>', sep=""))
                                            
    if (fraction_significant>0.5 && input$summary_replicate == 'mean') {
-     HTML_Legend <- append(HTML_Legend, paste('Since the majority of the replicates shows a low p-value, consider using the median instead of the mean as a summary of the replicates.</br>', sep=""))
+     HTML_Legend <- append(HTML_Legend, paste('<p>Since the majority of the replicates shows a low p-value, consider using the <b>median</b> instead of the mean as a summary of the replicates.</p>', sep=""))
    }                                         
-    HTML_Legend <- append(HTML_Legend, paste('<p>The <b>',input$summary_replicate,'</b> is used as a summary of the replicates.</br>', sep=""))
-  
+    HTML_Legend <- append(HTML_Legend, paste('<p>Table 2: Summary of the statistics for each condition which is calculated from the <b>',input$summary_replicate,'</b> of the replicates.</p>', sep=""))
+
+    
+    HTML_Legend <- append(HTML_Legend, paste('<p>Table 3: Statistics for the comparison of the conditions to "',input$zero,'".</br>', sep=""))
+    
+    HTML_Legend <- append(HTML_Legend, paste('The difference and 95% confidence interval provide an estimate of the size of the effect. ', sep=""))
+    
+    
     if (input$connect==T) {
-      HTML_Legend <- append(HTML_Legend, paste('<p>The biological replicates are treated as paired. A paired t-test is performed to calculate the p-value for the comparison of the conditions', sep=""))
+      HTML_Legend <- append(HTML_Legend, paste('The replicates are paired between conditions and a paired t-test is used to calculate the p-value. ', sep=""))
     } else if (input$connect==F) {
-      HTML_Legend <- append(HTML_Legend, paste("<p>The biological replicates are not treated as paired. A Welch's t-test is performed to calculate the p-value for the comparison of the conditions", sep=""))
-      
+      HTML_Legend <- append(HTML_Legend, paste("The replicates are <b>not</b> paired and Welch's t-test is performed to calculate the p-value. ", sep=""))
     }
+    
     
     
 })
