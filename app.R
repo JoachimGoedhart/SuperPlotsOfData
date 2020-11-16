@@ -100,9 +100,8 @@ ui <- fluidPage(
                  
                  conditionalPanel(
                    condition = "input.tabs=='Data upload'",
-                   h4("Data upload"),
                    radioButtons(
-                     "data_input", "",
+                     "data_input", h4("Data upload"),
                      choices = 
                        list(
                           # "Example data (tidy format)" = 1,
@@ -180,6 +179,7 @@ ui <- fluidPage(
                    ),
                    
                    hr(),
+                   h4('Data conversion'),
                    checkboxInput(inputId = "toggle_tidy", label = "Convert to tidy", value = FALSE),
                    conditionalPanel(
                      condition = "input.toggle_tidy==true",
@@ -191,15 +191,23 @@ ui <- fluidPage(
                      NULL),
                    
                    hr(),
-                   selectInput("x_var", "Conditions to compare:", choices = "Treatment", selected="Treatment"),
-                   checkboxInput(inputId = "x_cont",
-                                 label = "Continuous data",
-                                 value = FALSE), 
-                   selectInput("y_var", "Variables:", choices = "Speed", selected="Speed"),
+                   h4('Data selection for plotting'),
+                   selectInput("x_var", "Data for the x-axis:", choices = "Treatment", selected="Treatment"),
+
+                   selectInput("y_var", "Data for the y-axis:", choices = "Speed", selected="Speed"),
+
                    selectInput("g_var", "Groups/Replicates:", choices = list("Replicate", "-"), selected="Replicate"),
                   
                    hr(),
-                   
+
+                   h4('Data properties'),
+                   checkboxInput(inputId = "x_cont",
+                                 label = "Continuous x-axis data",
+                                 value = FALSE), 
+                   checkboxInput(inputId = "paired",
+                                 label = "All data are paired/connected",
+                                 value = FALSE),
+                   hr(),
                    checkboxInput(inputId = "info_data",
                                  label = "Show information on data formats",
                                  value = FALSE),
@@ -218,26 +226,23 @@ ui <- fluidPage(
       conditionalPanel(
         condition = "input.tabs=='Plot'",
         
-        radioButtons(inputId = "jitter_type", label = "Data display", choices = list("Data & distribution" = "quasirandom", "Jittered data" = "random", "Distribution only"="violin"), selected = "quasirandom"),
+        radioButtons(inputId = "jitter_type", label = h4("Data display"), choices = list("Data & distribution" = "quasirandom", "Jittered data" = "random","No offset"="no_jitter", "Distribution only"="violin"), selected = "quasirandom"),
         
         sliderInput(inputId = "alphaInput", label = "Visibility of the data", 0, 1, 0.7),
 
-        radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
-        radioButtons(inputId = "summary_condition", label = "Statistics per condtion:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
-        
-        conditionalPanel(condition = "input.summary_condition != 'none'",
-            sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1)
-        ),
-        
-        
-        checkboxInput(inputId = "show_table", label = "Display table with effect size", value = FALSE),
-        
-          conditionalPanel(condition = "input.show_table == true", selectInput("zero", "Select reference condition:", choices = "")),
 
         
-        h4("Formatting of Replicates"),
-        checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
+        h4("Replicates"),
+        radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
         
+        radioButtons(inputId = "connect", label = "Connect the dots (treat as paired data):", choices = list("No" = "blank", "Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"), selected = "blank"),
+        
+        
+        # checkboxInput(inputId = "connect", label = "Connect the dots (paired data)", FALSE),
+        # conditionalPanel(condition = "input.connect == true",
+        #                  checkboxInput(inputId = "solid", label = "Solid line", FALSE)
+        # ),
+        # 
         checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
         
         checkboxInput(inputId = "show_distribution", label = "Distribution per replicate", value = FALSE),
@@ -259,6 +264,23 @@ ui <- fluidPage(
                          
         ),
         selectInput("split_direction", label = "Split replicates:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
+        
+        h4("Comparing conditions"),
+        radioButtons(inputId = "summary_condition", label = "Statistics per condtion:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
+        
+        conditionalPanel(condition = "input.summary_condition != 'none'",
+                         sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1)
+        ),
+        
+        
+        checkboxInput(inputId = "show_table", label = "Table with quantitative comparison", value = FALSE),
+        
+        # conditionalPanel(condition = "input.show_table == true", 
+        selectInput("zero", "Select reference condition:", choices = ""
+                    # )
+        ),
+        
+        
         
         
         h4("Plot Layout"),
@@ -567,13 +589,17 @@ observe({
 
 
 ###### When a bar is added, make sure that the data is still visible
-observeEvent(input$add_bar, {
-  if (input$add_bar==TRUE)  {
-    updateSliderInput(session, "alphaInput", min=0.2, max=1)
+observeEvent(input$paired, {
+  if (input$paired==TRUE)  {
+    # update jitter options
+    updateRadioButtons(session, "jitter_type", choices = list("No offset"="no_jitter", "Distribution only"="violin"))
+    # update pairing options
+    updateRadioButtons(session, "connect", choices = list("Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"))
 
-  } else if (input$add_bar==FALSE)  {
-    updateSliderInput(session, "alphaInput", min=0, max=1)
-    
+  } else if (input$paired==FALSE)  {
+    updateRadioButtons(session, "jitter_type", choices = list("Data & distribution" = "quasirandom", "Jittered data" = "random","No offset"="no_jitter", "Distribution only"="violin"))
+    # update pairing options
+    updateRadioButtons(session, "connect", choices = list("No" = "blank", "Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"))
   }
 })
 
@@ -593,7 +619,7 @@ observeEvent(input$tabs, {
 
 
 observeEvent(input$connect, {
-  if (input$connect==TRUE)  {
+  if (input$connect!='blank')  {
     showNotification("Connecting or 'pairing' the data changes the p-value and the 95% confidence interval for the difference", duration = 10, type = "message")
   }
 })
@@ -1057,8 +1083,17 @@ plotdata <- reactive({
       p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
       p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
+    } else if (input$jitter_type == "no_jitter") {
+      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=0, height=0.0, cex=3.5, alpha=input$alphaInput)
     } else if (input$jitter_type == "violin") {
       p <- p + geom_violin(data=klaas, aes_string(x='Condition', y='Value', group='Condition'),width=data_width*2, fill='grey50', color=NA, alpha=input$alphaInput)
+    }
+    
+    #Add lines when all data is paired
+    if (input$paired == TRUE && input$jitter_type != "violin") {
+      #Need to add another column that defines pairing
+      klaas <- klaas %>% group_by(Condition) %>% mutate (id=row_number()) %>% ungroup()
+      p <-  p + geom_line(data=klaas, aes_string(x='Condition', y='Value', color=kleur, group = 'id'), size = .2, linetype=input$connect, alpha=input$alphaInput) 
     }
     
     if (input$summary_condition=="mean_SD") {
@@ -1072,10 +1107,10 @@ plotdata <- reactive({
       
     }
     
+
+    
     #Add dotted line to depict paired replicates
-    if (input$connect) {
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'), color=line_color, fun.y = stats, geom = "line", size = 1, linetype='dotted') 
-    }
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', color=kleur), fun.y = stats, geom = "line", size = 1, linetype=input$connect) 
 
     #Distinguish replicates by symbol
     if (input$add_shape)
@@ -1256,15 +1291,20 @@ df_difference <- reactive({
   #Get the reference values
   df_controls <- df %>% filter(Condition==!!control_condition)
   df_controls <- df_controls %>% select(Replica, control_value = Value, cond = Condition)
+  
+  if(nrow(df_controls)<3) {
+    return(df_difference <- data.frame('Error'='n<3 for the control condition'))
+  }
 
   #Remove the Reference from the dataframe and add the reference values to a new column
   df_diff <- df %>% 
     filter (Condition != !!control_condition) %>% 
     select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica')  %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
 
+  if (input$connect !='blank') {connect = TRUE} else {connect=FALSE}
   # Generate a dataframe that summarizes the differences between the control condition and others.
   df_difference <- df_diff  %>% 
-    group_by(Condition) %>% do(tidy(t.test(.$Value, .$control_value, paired = input$connect)))
+    group_by(Condition) %>% do(tidy(t.test(.$Value, .$control_value, paired = connect)))
   
   # observe({print(df_difference)})  
   
@@ -1324,8 +1364,6 @@ observeEvent(input$summary_replicate, {
   else if (input$summary_replicate=="median")  {
     updateSelectInput(session, "stats_select", selected = list("median", "MAD"))
   }
-
-  
 })
 
 observeEvent(input$select_all1, {
@@ -1396,28 +1434,33 @@ output$toptable <- renderTable({
 
 output$legend <- renderText({
   
-  
+  df <- df_difference()
   
   HTML_Legend <- c('<h4>Explanation of the statistics</h4>')
-  HTML_Legend <- append(HTML_Legend, paste('<p>Table 1: Summary of the statistics for each of the replicates. A high p-value for the Shapiro-Wilk test for normality suggests that the data distribution is normal.</p>', sep=""))
+  HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 1</u>: Summary of the statistics for each of the replicates. A high p-value for the Shapiro-Wilk test for normality suggests that the data distribution is normal.</p>', sep=""))
                                            
    if (fraction_significant>0.5 && input$summary_replicate == 'mean') {
      HTML_Legend <- append(HTML_Legend, paste('<p>Since the majority of the replicates shows a low p-value, consider using the <b>median</b> instead of the mean as a summary of the replicates.</p>', sep=""))
    }                                         
-    HTML_Legend <- append(HTML_Legend, paste('<p>Table 2: Summary of the statistics for each condition which is calculated from the <b>',input$summary_replicate,'</b> of the replicates.</p>', sep=""))
+    HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 2</u>: Summary of the statistics for each condition which is calculated from the <b>',input$summary_replicate,'</b> of the replicates.</p>', sep=""))
 
     
-    HTML_Legend <- append(HTML_Legend, paste('<p>Table 3: Statistics for the comparison of the conditions to "',input$zero,'".</br>', sep=""))
+    HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 3</u>: Statistics for the comparison of the conditions to "',input$zero,'".</br>', sep=""))
     
-    HTML_Legend <- append(HTML_Legend, paste('The difference and 95% confidence interval provide an estimate of the size of the effect. ', sep=""))
+    HTML_Legend <- append(HTML_Legend, paste('The difference is a point estimate of the size of the effect and the and 95% confidence interval is an interval estimate. ', sep=""))
     
     
-    if (input$connect==T) {
+    if (input$connect!='blank') {
       HTML_Legend <- append(HTML_Legend, paste('The replicates are paired between conditions and a paired t-test is used to calculate the p-value. ', sep=""))
-    } else if (input$connect==F) {
+    } else if (input$connect=='blank') {
       HTML_Legend <- append(HTML_Legend, paste("The replicates are <b>not</b> paired and Welch's t-test is performed to calculate the p-value. ", sep=""))
     }
     
+    if (length(df$Condition)>1) {
+      HTML_Legend <- append(HTML_Legend, paste("</br>The p-values are <b>not corrected</b> for multiple comparisons. Consider alternative statistical analyses.", sep=""))
+      
+    }
+    return(HTML_Legend)
     
     
 })
