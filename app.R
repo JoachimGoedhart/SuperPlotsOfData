@@ -419,7 +419,7 @@ server <- function(input, output, session) {
 
   
   observe({
-    showNotification("The app (and paper) are currently undergoing revision, which means that small changes may occur (the earlier v1.0.1 is archived at Zenodo, doi: 10.5281/zenodo.4018039). Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
+    showNotification("In the most recent revision of the app, the order of user inputs in the interface has been modified. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
   })
   
   fraction_significant <- 0
