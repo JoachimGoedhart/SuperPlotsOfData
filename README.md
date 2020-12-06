@@ -46,7 +46,7 @@ The Superplot as a means of communicating about replicates is published by [Lord
 </br>
   
 
-The colorblind safe palettes were developed by <a href="https://personal.sron.nl/~pault/">Paul Tol</a>.</p>
+The colorblind safe palettes were developed by <a href="https://personal.sron.nl/~pault/">Paul Tol</a> and [Okabe & Ito](https://jfly.uni-koeln.de/color/).</p>
 
 ### Contact
 
