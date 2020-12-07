@@ -13,23 +13,23 @@ The SuperPlotsOfData Shiny app combines the idea of SuperPlots with the philosop
 
 The app is available online: [https://huygens.science.uva.nl/SuperPlotsOfData/](https://huygens.science.uva.nl/SuperPlotsOfData/)
 
-But you can also run it offline in R/Rstudio. In the command line (in R or Rstudio) type
-shiny::runGitHub('SuperPlotsOfData', 'JoachimGoedhart')
+But you can also run it offline in R/Rstudio. To run the app locally, you'll need the following packages: shiny, ggplot2, dplyr, tidyr, readr, magrittr, ggbeeswarm, readxl, DT, RCurl, broom. To download and install all the packages at once use in Rstudio:
+
+-install.packages("shiny", "ggplot2", "dplyr", "tidyr", "readr", "readxl", "magrittr", "DT", "ggbeeswarm", "RCurl", "broom")
+
+To run the app from the Github repo, type in the command line (in R or Rstudio):
+
+-shiny::runGitHub('SuperPlotsOfData', 'JoachimGoedhart')
 
 Or download it to use it offline:
 
--download the files from the Github repository.
+-download all the files from the Github repository.
 
 -Run RStudio and load the 'app.R' file from the repository
 
 -Select 'Run All' (shortcut is command-option-R on a Mac) or click on "Run App" (upper right button on the window)
 
 This should launch a web browser with the Shiny app.
-Note that the app depends on several R packages that need to be installed (shiny, ggplot2, dplyr, tidyr, readr, magrittr, ggbeeswarm, readxl, DT, RCurl, broom)
-
-Run this command in R/Rstudio to download and install all the packages at once:
-
--install.packages("shiny", "ggplot2", "dplyr", "tidyr", "readr", "readxl", "magrittr", "DT", "ggbeeswarm", "RCurl", "broom")
 
 
 ### Example output
