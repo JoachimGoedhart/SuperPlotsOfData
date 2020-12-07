@@ -1284,23 +1284,36 @@ df_difference <- reactive({
     } else if (input$summary_replicate =="mean") {
       df <- df_summ_per_replica() %>% rename(Value=mean)}
   }
-
+  
+  # Select only the relevant data from the dataframe
+  df <- df %>% select(Condition, Value, Replica)
+  
+  # If no replicates are defined, treat each samples as a replicate. This will ensure proper behaviour in the t-test
+  if (length(unique(df$Replica)) == 1) {
+    df <- df %>% group_by(Condition) %>% mutate(Replica = row_number(Condition))
+  }
+  
+  #Makes every condition the same length by filling up with NA. This simplifies testing/comparison
+  df <- df %>% spread(Condition, Value) %>% gather(Condition, Value, -Replica, na.rm = FALSE)
+  
   # select the control condition for comparisons
   control_condition <- input$zero
   
   #Get the reference values
   df_controls <- df %>% filter(Condition==!!control_condition)
+  #Rename the column names for the control dataframe
   df_controls <- df_controls %>% select(Replica, control_value = Value, cond = Condition)
   
-  if(nrow(df_controls)<3) {
+  if(length(na.omit(df_controls$control_value))<3) {
     return(df_difference <- data.frame('Error'='n<3 for the control condition'))
   }
 
   #Remove the Reference from the dataframe and add the reference values to a new column
   df_diff <- df %>% 
     filter (Condition != !!control_condition) %>% 
-    select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica')  %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
+    select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica') %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
 
+  # df_diff$Condition <- paste(df_diff$Condition, "vs", control_condition)
   
   observe({print(df_diff)})
   if (input$connect !='blank') {connect = TRUE} else {connect=FALSE}
