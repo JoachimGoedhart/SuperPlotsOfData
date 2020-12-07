@@ -84,8 +84,8 @@ Greyscale <- c('grey30','grey40','grey50','grey60','grey70')
 Okabe_Ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#000000")
 
 #Read a text file (comma separated values)
-df_tidy_example <- read.csv("combined.csv", na.strings = "")
-df_tidy_example2 <- read.csv("another_example.csv", na.strings = "")
+df_tidy_example <- read.csv("combined.csv", na.strings = "", stringsAsFactors = TRUE)
+df_tidy_example2 <- read.csv("another_example.csv", na.strings = "", stringsAsFactors = TRUE)
 
 # Create a reactive object here that we can share between all the sessions.
 vals <- reactiveValues(count=0)
@@ -475,7 +475,7 @@ df_upload <- reactive({
               if (fileext=="xls" || fileext=="xlsx") {
                   data <- read_excel(file_in$datapath)
               } else if (fileext == "txt" || fileext=="csv") {
-                  data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"))
+                  data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"), stringsAsFactors = TRUE)
               } 
           
         #### Read wide Data and convert #####
@@ -500,7 +500,7 @@ df_upload <- reactive({
         return(data.frame(x = "Enter a full HTML address, for example: https://zenodo.org/record/2545922/files/FRET-efficiency_mTq2.csv"))
       } else if (url.exists(input$URL) == FALSE) {
          return(data.frame(x = paste("Not a valid URL: ",input$URL)))
-      } else {data <- read.csv(input$URL)}
+      } else {data <- read.csv(file=input$URL, stringsAsFactors = TRUE)}
     
       #Read the data from textbox
     } else if (input$data_input == 4) {
@@ -572,7 +572,7 @@ observe({
         
         vary_list <- c("none",nms_var)
         
-        facet_list <- c("-",nms_fact)
+        facet_list <- c("-",var_names)
 
         updateSelectInput(session, "colour_list", choices = nms_fact)
         updateSelectInput(session, "y_var", choices = vary_list, selected = y_var.selected)
@@ -1301,6 +1301,8 @@ df_difference <- reactive({
     filter (Condition != !!control_condition) %>% 
     select(Condition,Replica,Value) %>% full_join(df_controls, by='Replica')  %>% unite('Condition' ,c("cond","Condition"), sep = " vs ")
 
+  
+  observe({print(df_diff)})
   if (input$connect !='blank') {connect = TRUE} else {connect=FALSE}
   # Generate a dataframe that summarizes the differences between the control condition and others.
   df_difference <- df_diff  %>% 
