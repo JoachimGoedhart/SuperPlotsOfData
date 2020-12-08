@@ -228,10 +228,13 @@ ui <- fluidPage(
         
         radioButtons(inputId = "jitter_type", label = h4("Data display"), choices = list("Data & distribution" = "quasirandom", "Jittered data" = "random","No offset"="no_jitter", "Distribution only"="violin"), selected = "quasirandom"),
         
+        checkboxInput(inputId = "change_size", label = "Change size", value = FALSE),
+        conditionalPanel(condition = "input.change_size == true",
+                         numericInput("dot_size", "Size:", value = 3.5),
+        ),
+        
         sliderInput(inputId = "alphaInput", label = "Visibility of the data", 0, 1, 0.7),
 
-
-        
         h4("Replicates"),
         radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
         
@@ -244,12 +247,6 @@ ui <- fluidPage(
         # ),
         # 
         checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
-        
-        checkboxInput(inputId = "change_size", label = "Change size", value = FALSE),
-        conditionalPanel(condition = "input.change_size == true",
-                         numericInput("dot_size", "Size:", value = 8),
-        ),
-        
         
         checkboxInput(inputId = "show_distribution", label = "Distribution per replicate", value = FALSE),
         
@@ -1086,11 +1083,11 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
-      p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=3.5, alpha=input$alphaInput, groupOnX=TRUE)
+      p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
-      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=3.5, alpha=input$alphaInput)
+      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "no_jitter") {
-      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=0, height=0.0, cex=3.5, alpha=input$alphaInput)
+      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=0, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "violin") {
       p <- p + geom_violin(data=klaas, aes_string(x='Condition', y='Value', group='Condition'),width=data_width*2, fill='grey50', color=NA, alpha=input$alphaInput)
     }
@@ -1118,9 +1115,9 @@ plotdata <- reactive({
 
     #Distinguish replicates by symbol
     if (input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = input$dot_size) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8) 
     if (!input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = input$dot_size) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8) 
 
     #Show distribution for each replicate
     if  (input$show_distribution) {
