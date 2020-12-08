@@ -245,6 +245,12 @@ ui <- fluidPage(
         # 
         checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
         
+        checkboxInput(inputId = "change_size", label = "Change size", value = FALSE),
+        conditionalPanel(condition = "input.change_size == true",
+                         numericInput("dot_size", "Size:", value = 8),
+        ),
+        
+        
         checkboxInput(inputId = "show_distribution", label = "Distribution per replicate", value = FALSE),
         
         radioButtons("adjustcolors", "By color:",
@@ -1107,16 +1113,14 @@ plotdata <- reactive({
       
     }
     
-
-    
-    #Add dotted line to depict paired replicates
+    #Add line to depict paired replicates
       p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', color=kleur), fun.y = stats, geom = "line", size = 1, linetype=input$connect) 
 
     #Distinguish replicates by symbol
     if (input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = input$dot_size) 
     if (!input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = input$dot_size) 
 
     #Show distribution for each replicate
     if  (input$show_distribution) {
