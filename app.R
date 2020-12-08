@@ -1294,7 +1294,10 @@ df_difference <- reactive({
   }
   
   #Makes every condition the same length by filling up with NA. This simplifies testing/comparison
-  df <- df %>% spread(Condition, Value) %>% gather(Condition, Value, -Replica, na.rm = FALSE)
+  # df <- df %>% spread(Condition, Value) %>% gather(Condition, Value, -Replica, na.rm = FALSE)
+  
+  df <- df %>% pivot_wider(names_from = "Condition", values_from = "Value") %>% pivot_longer(!Replica, names_to="Condition", values_to = "Value", values_drop_na = FALSE)
+  
   
   # select the control condition for comparisons
   control_condition <- input$zero
