@@ -51,6 +51,9 @@ source("function_tidy_df.R")
 # Function that returns the p-value from Shapiro-Wilk test
 f = function(x){
   if (length(x)<3) {return(NA)}
+  
+  # Return NA in case all numbers are identical
+  if (length(unique(x))<2) {return(NA)}
   st = shapiro.test(x)
   return(st$p.value)
   }
