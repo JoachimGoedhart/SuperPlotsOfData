@@ -410,7 +410,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
                   tabPanel("Data Summary",
                            h3("Table 1: Statistics for individual replicates"),dataTableOutput('data_summary'),
                            h3("Table 2: Statistics for conditions"),dataTableOutput('data_summary_condition') , 
-                           h3("Table 3: Statistics for differences between conditions"),dataTableOutput('data_difference'),
+                           h3("Table 3: Statistics for comparison of means between conditions"),dataTableOutput('data_difference'),
                            NULL
                            ),
                   tabPanel("About", includeHTML("about.html")
@@ -425,7 +425,7 @@ server <- function(input, output, session) {
 
   
   observe({
-    showNotification("In the most recent revision of the app, the order of user inputs in the interface has been modified. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
+    showNotification("In the most recent revision of the app, the comparison of conditions is based on means of replicates. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
   })
   
   fraction_significant <- 0
@@ -632,7 +632,7 @@ observeEvent(input$connect, {
 
 observeEvent(input$summary_replicate, {
   if (input$summary_replicate=="median")  {
-    showNotification("Selecting the median as the measure of location for the replicates changes the p-value and the difference", duration = 10, type = "message")
+    showNotification("Selecting the median as the measure of location for the replicates does not change the p-value and the difference, as these are calculated from the  values", duration = 10, type = "message")
   }
 })
 
@@ -1284,7 +1284,7 @@ df_difference <- reactive({
   ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
   if (length(unique(df$Replica)) > 1) {
     if (input$summary_replicate =="median")  {
-      df <- df_summ_per_replica() %>% rename(Value=median)
+      df <- df_summ_per_replica() %>% rename(Value=mean) #Even when median is selected as summary, the mean is used for the t-test
     } else if (input$summary_replicate =="mean") {
       df <- df_summ_per_replica() %>% rename(Value=mean)}
   }
@@ -1467,7 +1467,7 @@ output$legend <- renderText({
     HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 2</u>: Summary of the statistics for each condition which is calculated from the <b>',input$summary_replicate,'</b> of the replicates.</p>', sep=""))
 
     
-    HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 3</u>: Statistics for the comparison of the conditions to "',input$zero,'".</br>', sep=""))
+    HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 3</u>: Statistics for the comparison of the conditions to "',input$zero,'" based on the <b>mean</b> of the replicates.</br>', sep=""))
     
     HTML_Legend <- append(HTML_Legend, paste('The difference is a point estimate of the size of the effect and the and 95% confidence interval is an interval estimate. ', sep=""))
     
