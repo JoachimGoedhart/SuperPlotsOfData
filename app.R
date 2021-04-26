@@ -1207,14 +1207,23 @@ plotdata <- reactive({
     }
     
     #Add line to depict paired replicates
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', color=kleur), fun = mean, geom = "line", size = 1, linetype=input$connect) 
+      p <-  p + geom_line(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', color=kleur), size = 1, linetype=input$connect) 
 
     #Distinguish replicates by symbol
-    if (input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun = stats, geom = "point", stroke = 1, size = 8) 
-    if (!input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun = stats, geom = "point", stroke = 1, size = 8) 
+    # if (input$add_shape)
+    #   p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun = stats, geom = "point", stroke = 1, size = 8) 
+    # if (!input$add_shape)
+    #   p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun = stats, geom = "point", stroke = 1, size = 8) 
 
+      #Distinguish replicates by symbol
+      if (input$add_shape)
+        p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, shape = vorm), color=line_color, stroke = 1, size = 8)
+       if (!input$add_shape)
+         p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), color=line_color, shape=21, stroke = 1, size = 8) 
+      
+      
+      
+      
     #Show distribution for each replicate
     if  (input$show_distribution) {
       p <- p + geom_flat_violin(data=klaas, aes_string(x='Condition', y='Value',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
