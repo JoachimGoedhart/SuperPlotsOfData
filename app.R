@@ -58,6 +58,29 @@ f = function(x){
   return(st$p.value)
   }
 
+#Custom stats for ggplot2: https://stackoverflow.com/questions/6717675/how-can-one-write-a-function-to-create-custom-error-bars-for-use-with-ggplot2/6717697
+
+add_SD <- function(x) {
+  avg <- mean(x)
+  sd <- sd(x)
+  triplet <- data.frame(avg, avg-sd, avg+sd)
+  names(triplet) <- c("y","ymin","ymax") #this is what ggplot is expecting
+  return (triplet)
+}
+
+add_CI <- function(x) {
+  avg <- mean(x)
+  sd <- sd(x)
+  n <- length(x)
+  sem <-  sd / sqrt(n - 1)
+  CI_lo = avg + qt((1-0.95)/2, n - 1) * sem
+  CI_hi = avg - qt((1-0.95)/2, n - 1) * sem
+  triplet <- data.frame(avg, CI_lo, CI_hi)
+  names(triplet) <- c("y","ymin","ymax") #this is what ggplot is expecting
+  return (triplet)
+}
+
+
 ##### Global variables #####
 
 i=0
@@ -202,6 +225,10 @@ ui <- fluidPage(
                    selectInput("g_var", "Groups/Replicates:", choices = list("Replicate", "-"), selected="Replicate"),
                   
                    hr(),
+                   # selectInput("filter_column", "Filter based on this parameter:", choices = ""),
+                   selectInput("use_these_conditions", "Select and order:", "", multiple = TRUE),
+                   hr(),
+                   
 
                    h4('Data properties'),
                    checkboxInput(inputId = "x_cont",
@@ -271,8 +298,8 @@ ui <- fluidPage(
         ),
         selectInput("split_direction", label = "Split replicates:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
         
-        h4("Comparing conditions"),
-        radioButtons(inputId = "summary_condition", label = "Statistics per condtion:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
+        # h4("Comparing conditions"),
+        radioButtons(inputId = "summary_condition", label = "Error bars:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
         
         conditionalPanel(condition = "input.summary_condition != 'none'",
                          sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1)
@@ -452,6 +479,7 @@ df_upload <- reactive({
         
         
     } else if (input$data_input == 3) {
+      x_var.selected <<- "none"
       y_var.selected <<- "none"
       g_var.selected <<- "-" 
       file_in <- input$upload
@@ -499,7 +527,7 @@ df_upload <- reactive({
         
       }
     } else if (input$data_input == 5) {
-      
+      x_var.selected <<- "none"
       #Read data from a URL
       #This requires RCurl
       if(input$URL == "") {
@@ -510,6 +538,7 @@ df_upload <- reactive({
     
       #Read the data from textbox
     } else if (input$data_input == 4) {
+      x_var.selected <<- "none"
       y_var.selected <<- "none"
       g_var.selected <<- "-" 
       if (input$data_paste == "") {
@@ -549,11 +578,24 @@ df_upload <- reactive({
 ##### REMOVE SELECTED COLUMNS #########
 df_filtered <- reactive({     
   
-  if (!is.null(input$data_remove)) {
-    columns = input$data_remove
-    df <- df_upload() %>% select(-one_of(columns))
-  } else if (is.null(input$data_remove)) {
-  df <- df_upload()}
+  if (!is.null(input$use_these_conditions) && input$x_var != "none") {
+    
+    x_var <- input$x_var
+    use_these_conditions <- input$use_these_conditions
+    
+    observe({print(use_these_conditions)})
+    
+    #Remove the columns that are selected (using filter() with the exclamation mark preceding the condition)
+    # https://dplyr.tidyverse.org/reference/filter.html
+    df <- df_upload() %>% filter(.data[[x_var[[1]]]] %in% !!use_these_conditions)
+    
+    
+  } else {df <- df_upload()}
+  
+  #Replace space and dot of header names by underscore
+  df <- df %>%  
+    select_all(~gsub("\\s+|\\.", "_", .))
+
   
 })
 
@@ -580,12 +622,13 @@ observe({
         
         facet_list <- c("-",var_names)
 
-        updateSelectInput(session, "colour_list", choices = nms_fact)
+        # updateSelectInput(session, "colour_list", choices = nms_fact)
         updateSelectInput(session, "y_var", choices = vary_list, selected = y_var.selected)
         updateSelectInput(session, "x_var", choices = varx_list, selected = x_var.selected)
         updateSelectInput(session, "g_var", choices = facet_list, selected = g_var.selected)
         updateSelectInput(session, "h_facet", choices = facet_list)
         updateSelectInput(session, "v_facet", choices = facet_list)
+        # updateSelectInput(session, "filter_column", choices = varx_list, selected="none")
         
  #       if (input$add_bar == TRUE) {
 #          updateSelectInput(session, "alphaInput", min = 0.3)
@@ -593,6 +636,27 @@ observe({
 
     })
 
+  
+  ########### When x_var is selected for tidy data, get the list of conditions
+  
+  observeEvent(input$x_var != 'none' && input$y_var != 'none', {
+    
+    if (input$x_var != 'none') {
+      
+      filter_column <- input$x_var
+      
+      if (filter_column == "") {filter_column <- NULL}
+      
+      koos <- df_upload() %>% select(for_filtering = !!filter_column)
+      
+      conditions_list <- levels(factor(koos$for_filtering))
+      # observe(print((conditions_list)))
+      updateSelectInput(session, "use_these_conditions", choices = conditions_list)
+    }
+    
+  })
+  
+  
 
 ###### When a bar is added, make sure that the data is still visible
 observeEvent(input$paired, {
@@ -632,7 +696,7 @@ observeEvent(input$connect, {
 
 observeEvent(input$summary_replicate, {
   if (input$summary_replicate=="median")  {
-    showNotification("Selecting the median as the measure of location for the replicates does not change the p-value and the difference, as these are calculated from the  values", duration = 10, type = "message")
+    showNotification("Selecting the median as the measure of location for the replicates does not change the p-value and the difference, as these are calculated from the mean values", duration = 10, type = "message")
   }
 })
 
@@ -691,6 +755,10 @@ observe({
   
   updateSliderInput(session, "alphaInput_summ", value = presets_vis[8])
   updateRadioButtons(session, "ordered", selected = presets_vis[9])
+  
+  #For backward compatibility with links in the paper
+  if (length(presets_vis)<10) {dotsize <- 3.5} else {dotsize <- presets_vis[10]}
+  updateNumericInput(session, "dot_size", value= dotsize)
   #select zero
   
 #  updateTabsetPanel(session, "tabs", selected = "Plot")
@@ -728,10 +796,16 @@ observe({
   if (!is.null(query[['color']])) {
     
     presets_color <- query[['color']]
+    observe(print((presets_color)))
     presets_color <- unlist(strsplit(presets_color,";"))
+    
+    color_list <- gsub("_", "#", presets_color[2])
+    
+    observe(print((color_list)))
+    
 
-    updateSelectInput(session, "colour_list", selected = presets_color[1])
-    updateTextInput(session, "user_color_list", value= presets_color[2])
+    # updateSelectInput(session, "colour_list", selected = presets_color[1])
+    updateTextInput(session, "user_color_list", value= color_list)
   }
 
     ############ ?label ################
@@ -784,15 +858,20 @@ url <- reactive({
   data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
  
  
-  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summary_replicate, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered)
+  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summary_replicate, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered, input$dot_size)
   layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, input$dark,
               input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
   #Hide the standard list of colors if it is'nt used
    if (input$adjustcolors != "5") {
-     color <- c(input$colour_list, "none")
+     color <- c("x", "none")
    } else if (input$adjustcolors == "5") {
-     color <- c(input$colour_list, input$user_color_list)
+     
+     
+     
+     stripped <- gsub("#", "_", input$user_color_list)
+     
+     color <- c("X", stripped)
    }
   
   # label <- c(input$add_title, input$title, input$label_axes, input$lab_x, input$lab_y, input$adj_fnt_sz, input$fnt_sz_ttl, input$fnt_sz_ax, input$add_legend)
@@ -854,7 +933,13 @@ df_sorted <- reactive({
      klaas$Condition <- reorder(klaas$Condition, klaas$Value, median, na.rm = TRUE)
 
    } else if (input$ordered == "none") {
+     
+    if (!is.null(input$use_these_conditions)) {
+      # Set order based on input
+     klaas$Condition <- factor(klaas$Condition, levels = input$use_these_conditions)}
+     else {
       klaas$Condition <- factor(klaas$Condition, levels=unique(klaas$Condition))
+     }
 
    } else if (input$ordered == "alphabet") {
      klaas$Condition <- factor(klaas$Condition, levels=unique(sort(klaas$Condition)))
@@ -868,7 +953,7 @@ df_sorted <- reactive({
 
 df_selected <- reactive({
 
-    df_temp <- df_upload() 
+    df_temp <- df_filtered() 
     x_choice <- input$x_var
     y_choice <- input$y_var
     g_choice <- input$g_var
@@ -1102,25 +1187,33 @@ plotdata <- reactive({
       p <-  p + geom_line(data=klaas, aes_string(x='Condition', y='Value', color=kleur, group = 'id'), size = .2, linetype=input$connect, alpha=input$alphaInput) 
     }
     
-    if (input$summary_condition=="mean_SD") {
+    if (input$summary_condition=="mean_SD" && input$split_direction=="No") {
       p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
       p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+    } else if (input$summary_condition=="mean_SD" && input$split_direction!="No") {
+      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+                            fun.data = add_SD,
+                            geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
     
-    if (input$summary_condition=="mean_CI") {
+    if (input$summary_condition=="mean_CI" && input$split_direction=="No") {
       p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ) 
       p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin='`95%CI_lo`', ymax='`95%CI_hi`'), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ) 
+    } else if (input$summary_condition=="mean_CI" && input$split_direction!="No") {
       
+      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+                            fun.data = add_CI, 
+                            geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
     
     #Add line to depict paired replicates
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', color=kleur), fun.y = stats, geom = "line", size = 1, linetype=input$connect) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', color=kleur), fun = mean, geom = "line", size = 1, linetype=input$connect) 
 
     #Distinguish replicates by symbol
     if (input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun.y = stats, geom = "point", stroke = 1, size = 8) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur, shape = vorm), color=line_color, fun = stats, geom = "point", stroke = 1, size = 8) 
     if (!input$add_shape)
-      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun.y = stats, geom = "point", stroke = 1, size = 8) 
+      p <-  p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica', fill = kleur), color=line_color, shape=21, fun = stats, geom = "point", stroke = 1, size = 8) 
 
     #Show distribution for each replicate
     if  (input$show_distribution) {
