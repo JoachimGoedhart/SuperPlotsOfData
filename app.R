@@ -267,7 +267,7 @@ ui <- fluidPage(
 
         h4("Replicates"),
         radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
-        
+        sliderInput(inputId = "alphaStats", label = "Visibility of the stats", 0, 1, 1),
         radioButtons(inputId = "connect", label = "Connect the dots (treat as paired data):", choices = list("No" = "blank", "Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"), selected = "blank"),
         
         
@@ -302,7 +302,7 @@ ui <- fluidPage(
         radioButtons(inputId = "summary_condition", label = "Error bars:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
         
         conditionalPanel(condition = "input.summary_condition != 'none'",
-                         sliderInput("alphaInput_summ", "Visibility of the statistics", 0, 1, 1)
+                         sliderInput("alphaInput_summ", "Visibility of the error bar:", 0, 1, 1)
         ),
         
         
@@ -452,7 +452,7 @@ server <- function(input, output, session) {
 
   
   observe({
-    showNotification("In the most recent revision of the app, the comparison of conditions is based on means of replicates. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
+    showNotification("New feature: conditions can be (de)selected and ordered. Feedback or suggestions to improve the app are appreciated. For contact information, see the 'About' tab. ", duration = 10, type = "warning")
   })
   
   fraction_significant <- 0
@@ -761,8 +761,11 @@ observe({
   updateNumericInput(session, "dot_size", value= dotsize)
   #select zero
   
+  
+  updateRadioButtons(session, "summary_condition", selected = presets_vis[11])
 #  updateTabsetPanel(session, "tabs", selected = "Plot")
   }
+
   
   ############ ?layout ################
   
@@ -858,7 +861,7 @@ url <- reactive({
   data <- c(input$data_input, "", input$x_var, input$y_var, input$g_var)
  
  
-  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summary_replicate, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered, input$dot_size)
+  vis <- c(input$jitter_type, input$show_distribution, input$alphaInput, input$summary_replicate, input$connect, input$show_table, input$add_shape, input$alphaInput_summ, input$ordered, input$dot_size, input$summary_condition)
   layout <- c(input$split_direction, input$rotate_plot, input$no_grid, input$change_scale, input$scale_log_10, input$range, input$dark,
               input$adjustcolors, input$add_legend, input$plot_height, input$plot_width)
 
@@ -1217,11 +1220,9 @@ plotdata <- reactive({
 
       #Distinguish replicates by symbol
       if (input$add_shape)
-        p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, shape = vorm), color=line_color, stroke = 1, size = 8)
+        p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, shape = vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8)
        if (!input$add_shape)
-         p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), color=line_color, shape=21, stroke = 1, size = 8) 
-      
-      
+         p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
       
       
     #Show distribution for each replicate
@@ -1285,6 +1286,15 @@ plotdata <- reactive({
     if (input$add_legend == FALSE) {
       p <- p + theme(legend.position="none")
     }
+    
+    #Remove strips with labels of facets when legend is present
+    if (input$add_legend == TRUE && input$split_direction != "No") {
+      p <- p + theme(
+        strip.background = element_blank(),
+        strip.text.x = element_blank()
+      )
+    }
+    
 
      #remove gridlines (if selected)
      if (input$no_grid == TRUE) {  
