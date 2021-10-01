@@ -277,6 +277,7 @@ ui <- fluidPage(
         # ),
         # 
         checkboxInput(inputId = "add_shape", label = "Identify by shape", value = FALSE),
+        checkboxInput(inputId = "add_n", label = "Size reflects 'n' (new feature)", value = FALSE),
         
         checkboxInput(inputId = "show_distribution", label = "Distribution per replicate", value = FALSE),
         
@@ -1030,8 +1031,16 @@ df_summ_per_replica <- reactive({
 
 
 
-   koos <- koos %>% select(Replica,n,mean,sd,sem,'95%CI_lo','95%CI_hi',median,'p(Shapiro-Wilk)') %>% mutate_at(c(3:9), round, input$digits) %>% mutate_at(10,round,3)
+   # koos <- koos %>% select(Replica,n,mean,sd,sem,'95%CI_lo','95%CI_hi',median,'p(Shapiro-Wilk)') %>% mutate_at(c(3:9), round, input$digits) %>% mutate_at(10,round,3)
 })
+
+df_summ_per_replica_rounded <- reactive({
+  
+  koos <- df_summ_per_replica() %>% select(Replica,n,mean,sd,sem,'95%CI_lo','95%CI_hi',median,'p(Shapiro-Wilk)') %>% mutate_at(c(3:9), round, input$digits) %>% mutate_at(10,round,3)
+
+})
+
+
 ######### DEFINE DOWNLOAD BUTTONS ###########
 
 ##### Set width and height of the plot area
@@ -1221,9 +1230,15 @@ plotdata <- reactive({
       #Distinguish replicates by symbol
       if (input$add_shape)
         p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, shape = vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8)
-       if (!input$add_shape)
-         p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
-      
+       if (!input$add_shape) {
+        
+         if (!input$add_n)
+           p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
+         
+         if (input$add_n)
+          p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, size='n'), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1)
+         p <- p + scale_size_area(max_size = 8)
+       }
       
     #Show distribution for each replicate
     if  (input$show_distribution) {
@@ -1478,16 +1493,12 @@ df_summary_condition <- reactive({
            `95%CI_hi` = mean - qt((1-Confidence_level)/2, n - 1) * sem,
            NULL)
   
-  # observe({print(df_stats)})
-  
-  
-  df <- df %>% mutate_at(c(3:7), round, input$digits)
-  
-  # observe({print(df)})
   return(df)
 })
 
-
+df_summary_condition_rounded <- reactive({
+  df <- df_summary_condition() %>% mutate_at(c(3:7), round, input$digits)
+})
 
 #### A predefined selection of stats for the table  ###########
 
@@ -1513,7 +1524,7 @@ observeEvent(input$deselect_all1, {
 
 output$data_summary <- renderDataTable(
  datatable(
-   df_summ_per_replica(),
+   df_summ_per_replica_rounded(),
 #  colnames = c(ID = 1),
   selection = 'none',
   extensions = c('Buttons', 'ColReorder'),
@@ -1530,7 +1541,7 @@ output$data_summary <- renderDataTable(
 
 output$data_summary_condition <- renderDataTable(
   datatable(
-    df_summary_condition(),
+    df_summary_condition_rounded(),
     #  colnames = c(ID = 1),
     selection = 'none',
     extensions = c('Buttons', 'ColReorder'),
