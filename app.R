@@ -27,13 +27,8 @@
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 library(shiny)
-library(ggplot2)
-library(dplyr)
-library(tidyr)
-library(readr)
-library(magrittr)
+library(tidyverse)
 library(ggbeeswarm)
-library(readxl)
 library(DT)
 library(RCurl)
 library(broom)
@@ -508,7 +503,7 @@ df_upload <- reactive({
 
 
               if (fileext=="xls" || fileext=="xlsx") {
-                  data <- read_excel(file_in$datapath)
+                  data <- readxl::read_excel(file_in$datapath)
               } else if (fileext == "txt" || fileext=="csv") {
                   data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"), stringsAsFactors = TRUE)
               } 
@@ -519,7 +514,7 @@ df_upload <- reactive({
             if (fileext == "txt" || fileext=="csv") {
                 df <- read.csv(file=file_in$datapath, sep = input$upload_delim, header = FALSE, stringsAsFactors = FALSE)
             } else if (fileext=="xls" || fileext=="xlsx") {
-                df <- read_excel(file_in$datapath, col_names = FALSE)
+                df <- readxl::read_excel(file_in$datapath, col_names = FALSE)
             } 
             
             labels <- gsub("\\s","", strsplit(input$labels,",")[[1]])

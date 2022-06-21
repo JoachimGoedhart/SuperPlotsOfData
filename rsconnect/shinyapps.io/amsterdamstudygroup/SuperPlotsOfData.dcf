@@ -1,0 +1,12 @@
+name: SuperPlotsOfData
+title: SuperPlotsOfData
+username:
+account: amsterdamstudygroup
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5282443
+bundleId: 5338370
+url: https://amsterdamstudygroup.shinyapps.io/SuperPlotsOfData/
+when: 1638863093.68741
+asMultiple: FALSE
+asStatic: FALSE
