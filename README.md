@@ -15,7 +15,15 @@ The app is available online: [https://huygens.science.uva.nl/SuperPlotsOfData/](
 
 But you can also run it offline in R/Rstudio. To run the app locally, you'll need the following packages: shiny, ggplot2, dplyr, tidyr, readr, magrittr, ggbeeswarm, readxl, DT, RCurl, broom. To download and install all the packages at once use in Rstudio:
 
--install.packages("shiny", "ggplot2", "dplyr", "tidyr", "readr", "readxl", "magrittr", "DT", "ggbeeswarm", "RCurl", "broom")
+-install.packages("shiny", "tidyverse", "DT", "ggbeeswarm", "RCurl", "broom")
+
+library(shiny)
+library(tidyverse)
+library(ggbeeswarm)
+library(DT)
+library(RCurl)
+library(broom)
+
 
 To run the app from the Github repo, type in the command line (in R or Rstudio):
 
