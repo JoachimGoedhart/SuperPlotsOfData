@@ -5,8 +5,10 @@ account: amsterdamstudygroup
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 5282443
-bundleId: 5338370
+bundleId: 6036524
 url: https://amsterdamstudygroup.shinyapps.io/SuperPlotsOfData/
-when: 1638863093.68741
+when: 1655998594.77009
+lastSyncTime: 1655998594.7701
 asMultiple: FALSE
 asStatic: FALSE
+ignoredFiles: .gitattributes|.Rapp.history
