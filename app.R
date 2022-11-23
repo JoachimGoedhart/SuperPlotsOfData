@@ -987,7 +987,7 @@ df_selected <- reactive({
     }
     
     #Convert Condition and Replica into factors
-    koos <- koos %>% mutate_at(vars(Condition, Replica), funs(factor))
+    koos <- koos %>% mutate_at(vars(Condition, Replica), list(factor))
 
     return(koos)
 })
