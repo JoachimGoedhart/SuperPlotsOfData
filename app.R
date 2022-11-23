@@ -75,6 +75,17 @@ add_CI <- function(x) {
   return (triplet)
 }
 
+add_sem <- function(x) {
+  avg <- mean(x)
+  sd <- sd(x)
+  n <- length(x)
+  sem <-  sd / sqrt(n - 1)
+  triplet <- data.frame(avg, avg-sem, avg+sem)
+  names(triplet) <- c("y","ymin","ymax") #this is what ggplot is expecting
+  return (triplet)
+}
+
+
 
 ##### Global variables #####
 
@@ -295,7 +306,7 @@ ui <- fluidPage(
         selectInput("split_direction", label = "Split replicates:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
         
         # h4("Comparing conditions"),
-        radioButtons(inputId = "summary_condition", label = "Error bars:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "none"="none"), selected = "none"),
+        radioButtons(inputId = "summary_condition", label = "Error bars:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "Mean & s.e.m." = "mean_sem", "none"="none"), selected = "none"),
         
         conditionalPanel(condition = "input.summary_condition != 'none'",
                          sliderInput("alphaInput_summ", "Visibility of the error bar:", 0, 1, 1)
@@ -1210,6 +1221,15 @@ plotdata <- reactive({
       
       p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
                             fun.data = add_CI, 
+                            geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+    }
+    
+    if (input$summary_condition=="mean_sem" && input$split_direction=="No") {
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sem, ymax=mean+sem), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+    } else if (input$summary_condition=="mean_sem" && input$split_direction!="No") {
+      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+                            fun.data = add_sem,
                             geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
     
