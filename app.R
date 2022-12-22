@@ -117,7 +117,7 @@ Okabe_Ito <- c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00",
 
 #Read a text file (comma separated values)
 df_tidy_example <- read.csv("combined.csv", na.strings = "", stringsAsFactors = TRUE)
-df_tidy_example2 <- read.csv("another_example.csv", na.strings = "", stringsAsFactors = TRUE)
+df_tidy_example2 <- read.csv("SystBloodPressure_tidy.csv", na.strings = "", stringsAsFactors = TRUE)
 
 # Create a reactive object here that we can share between all the sessions.
 vals <- reactiveValues(count=0)
@@ -138,7 +138,7 @@ ui <- fluidPage(
                        list(
                           # "Example data (tidy format)" = 1,
                          "Example data (tidy)" = 1,
-                         # "Example data (wide)" = 2,
+                         "Example data (tidy)" = 2,
                          "Upload file" = 3,
                          "Paste data" = 4,
                          "URL (csv files only)" = 5
@@ -153,6 +153,11 @@ ui <- fluidPage(
                      condition = "input.data_input=='1'",
                      p("Data S1 published in the original SuperPlots paper:"),a("https://doi.org/10.1083/jcb.202001064", href="https://doi.org/10.1083/jcb.202001064") 
                    ),
+                   conditionalPanel(
+                     condition = "input.data_input=='2'",
+                     p("Data from Table 1 of:"),a("Bland & Altman (1999)", href="https://doi.org/10.1177/096228029900800204")  
+                   ),
+                   
                    conditionalPanel(
                      condition = "input.data_input=='3'",
                      h5("Upload file: "),
@@ -475,8 +480,8 @@ df_upload <- reactive({
     
     if (input$data_input == 2) {
       data <- df_tidy_example2
-      x_var.selected <<- "Condition"
-      y_var.selected <<- "Activity"
+      x_var.selected <<- "Method"
+      y_var.selected <<- "BP"
       g_var.selected <<- "Replicate" 
     }  else if (input$data_input == 1) {
         data <- df_tidy_example
@@ -968,6 +973,7 @@ df_selected <- reactive({
     y_choice <- input$y_var
     g_choice <- input$g_var
     
+    
     #Prevent error if y parameter is not selected
     if (input$y_var =='none') {
       koos <- df_temp %>% select(Condition = !!x_choice)
@@ -977,14 +983,25 @@ df_selected <- reactive({
     }
     
     if (g_choice == "-") {
-
-    koos <- df_temp %>% select(Condition = !!x_choice , Value = !!y_choice) %>% filter(!is.na(Value))
-    koos$Replica <- as.factor("1")
+      if (input$x_var =='none') {
+        koos <- df_temp %>% select(Value = !!y_choice) %>% filter(!is.na(Value))
+        koos$Replica <- as.factor("1")
+        koos$Condition <- as.factor("1")
+      } else {
+        koos <- df_temp %>% select(Condition = !!x_choice , Value = !!y_choice) %>% filter(!is.na(Value))
+        koos$Replica <- as.factor("1")
+      }
     } else {
-      
+      #Prevent error if x parameter is not selected
+      if (input$x_var =='none') {
+        koos <- df_temp %>% select(Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
+        koos$Condition <- as.factor("1")
+        return(koos)
+      } else {
       koos <- df_temp %>% select(Condition = !!x_choice , Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
-      
+      }
     }
+    
     
     #Convert Condition and Replica into factors
     koos <- koos %>% mutate_at(vars(Condition, Replica), list(factor))
