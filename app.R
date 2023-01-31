@@ -25,6 +25,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# Improvements:
+# display of p-values (use of scientific notation if smaller than 0.001
+# Needs fixing, since doesn't work for multiple conditions)
+# Implement measures of reproducibility/repeatability
+
 
 library(shiny)
 library(tidyverse)
@@ -39,6 +44,7 @@ library(broom)
 source("geom_flat_violin.R")
 source("themes.R")
 source("function_tidy_df.R")
+source("repeatability.R")
 
 ###### Functions ##########
 
@@ -450,6 +456,7 @@ conditionalPanel(condition = "input.show_table == true", h3("Difference with the
                            h3("Table 1: Statistics for individual replicates"),dataTableOutput('data_summary'),
                            h3("Table 2: Statistics for conditions"),dataTableOutput('data_summary_condition') , 
                            h3("Table 3: Statistics for comparison of means between conditions"),dataTableOutput('data_difference'),
+                           h3("Table 4: Statistics for repeatability"),dataTableOutput('data_repeats'),
                            NULL
                            ),
                   tabPanel("About", includeHTML("about.html")
@@ -480,9 +487,9 @@ df_upload <- reactive({
     
     if (input$data_input == 2) {
       data <- df_tidy_example2
-      x_var.selected <<- "Method"
+      x_var.selected <<- "Condition"
       y_var.selected <<- "BP"
-      g_var.selected <<- "Replicate" 
+      g_var.selected <<- "N" 
     }  else if (input$data_input == 1) {
         data <- df_tidy_example
         x_var.selected <<- "Treatment"
@@ -1494,12 +1501,13 @@ df_difference <- reactive({
   df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 8)
   
   #Use scientific notation if smaller than 0.001
-  if (df_difference$p.value<0.001 && df_difference$p.value>=1e-10) {
-  df_difference$p.value  <- formatC(df_difference$p.value, format = "e", digits = 2)
-  #Any p-value lower than 1e-10 is noted as <1e-10
-  } else if (df_difference$p.value<1e-10) {
-    df_difference$p.value <- "<1e-10"
-  }
+  # Needs fixing, since doesn't work for multiple conditions
+  # if (df_difference$p.value<0.001 && df_difference$p.value>=1e-10) {
+  # df_difference$p.value  <- formatC(df_difference$p.value, format = "e", digits = 2)
+  # #Any p-value lower than 1e-10 is noted as <1e-10
+  # } else if (df_difference$p.value<1e-10) {
+  #   df_difference$p.value <- "<1e-10"
+  # }
 
   return(df_difference)
   
@@ -1525,11 +1533,35 @@ df_summary_condition <- reactive({
            `95%CI_hi` = mean - qt((1-Confidence_level)/2, n - 1) * sem,
            NULL)
   
+  
+  # ## Need to add the repeats for each subject
+  # df_id <- df_selected() %>% group_by(Condition, Replica) %>% mutate(replicates=row_number()) %>% ungroup()
+  # ## Calculate measures of repeatability
+  # df_repeatability <- df_id %>% repeatability(values=Value, replicates=replicates , groups=Condition)
+  # df_repeatability <- df_repeatability %>%
+  #   select(-c(Replica, replicates, TSS, SSw, SSb, MSw, MSb))
+  # 
+  # observe({print(head(df_repeatability))})
+  
+  
   return(df)
 })
 
 df_summary_condition_rounded <- reactive({
   df <- df_summary_condition() %>% mutate_at(c(3:7), round, input$digits)
+})
+
+df_repeats_rounded <- reactive({
+  
+  ## Need to add the repeats for each subject
+  df <- df_selected() %>% group_by(Condition, Replica) %>% mutate(replicates=row_number()) %>% ungroup()
+  
+  ## Calculate paramaters
+  df <- df %>% repeatability(values=Value, replicates=replicates , groups=Condition) %>%
+    select(-c(Replica, replicates, TSS, SSw, SSb, MSw, MSb))
+  
+  
+  df <- df %>% mutate_at(c(4:9), round, input$digits)
 })
 
 #### A predefined selection of stats for the table  ###########
@@ -1599,6 +1631,21 @@ output$data_difference <- renderDataTable(
   ) 
 ) 
 
+#### Render the data summary as a table ###########
+
+output$data_repeats <- renderDataTable(
+  datatable(
+    df_repeats_rounded(),
+    #  colnames = c(ID = 1),
+    selection = 'none',
+    extensions = c('Buttons', 'ColReorder'),
+    options = list(dom = 'Bfrtip', pageLength = 100,
+                   buttons = c('copy', 'csv','excel', 'pdf'),
+                   editable=FALSE, colReorder = list(realtime = FALSE), columnDefs = list(list(className = 'dt-center', targets = '_all'))
+    ) 
+  ) 
+) 
+
 
 ############## Render the data summary as a table ###########
 
@@ -1624,14 +1671,18 @@ output$legend <- renderText({
     
     HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 3</u>: Statistics for the comparison of the conditions to "',input$zero,'" based on the <b>mean</b> of the replicates.</br>', sep=""))
     
-    HTML_Legend <- append(HTML_Legend, paste('The difference is a point estimate of the size of the effect and the and 95% confidence interval is an interval estimate. ', sep=""))
     
+    HTML_Legend <- append(HTML_Legend, paste('The difference is a point estimate of the size of the effect and the 95% confidence interval is an interval estimate. ', sep=""))
+     
     
     if (input$connect!='blank') {
       HTML_Legend <- append(HTML_Legend, paste('The replicates are paired between conditions and a paired t-test is used to calculate the p-value. ', sep=""))
     } else if (input$connect=='blank') {
       HTML_Legend <- append(HTML_Legend, paste("The replicates are <b>not</b> paired and Welch's t-test is performed to calculate the p-value. ", sep=""))
     }
+    
+    HTML_Legend <- append(HTML_Legend, paste('<p><u>Table 4</u>: Statistics for the repeatability for each of the conditions. For explanation of the parameters see <a href="https://doi.org/10.1593/tlo.09268">Barnhart & Barboriak, 2009</a></br></p>', sep=""))
+    
     
     if (length(df$Condition)>1) {
       HTML_Legend <- append(HTML_Legend, paste("</br>The p-values are <b>not corrected</b> for multiple comparisons. Consider alternative statistical analyses.", sep=""))
