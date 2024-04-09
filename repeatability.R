@@ -27,16 +27,16 @@ repeatability <- function(df, values, replicates, groups) {
   }
   
   #Add IDs for the subjects
-  df_id <- df %>% group_by(!! group, !! replicate) %>% mutate(Subject=row_number()) %>% ungroup()
+  df_id <- df %>% group_by(!! group, !! replicate) %>% dplyr::mutate(Subject=row_number()) %>% ungroup()
   
   #Calculate n and k
   # n is the number of Experimental Units
   # k is the number of repeated measurements, or Observational Units
-  df_id <- df_id %>% group_by(!! replicate, !! group) %>% mutate(n=n()) %>% ungroup()
-  df_id <- df_id %>% group_by(Subject, !! group) %>% mutate(k=n()) %>% ungroup()
+  df_id <- df_id %>% group_by(!! replicate, !! group) %>% dplyr::mutate(n=n()) %>% ungroup()
+  df_id <- df_id %>% group_by(Subject, !! group) %>% dplyr::mutate(k=n()) %>% ungroup()
   
   #Calculate 'total sum of squares' for each condition TSS
-  df_id <- df_id %>% group_by(!! group) %>% mutate(TSS = sos(!! value)) %>% ungroup()
+  df_id <- df_id %>% group_by(!! group) %>% dplyr::mutate(TSS = sos(!! value)) %>% ungroup()
   
   #Simplify the dataframe, will depend on presence of 'groups' argument
   if (rlang::quo_is_missing(group)) {
@@ -51,11 +51,11 @@ repeatability <- function(df, values, replicates, groups) {
   #Calculate 'within groups sum of squares' SSw for each condition
   df_result$SSw <- df_id %>%
     group_by(!! group, Subject) %>%
-    summarize(sos = sos(!! value), .groups = 'drop') %>%
-    group_by(!! group) %>% summarize(SSw=sum(sos)) %>% pull(SSw)
+    dplyr::summarize(sos = sos(!! value), .groups = 'drop') %>%
+    group_by(!! group) %>% dplyr::summarize(SSw=sum(sos)) %>% pull(SSw)
   
   #Simplify the dataframe by removing irrelevant columns
-  df_result <- df_result %>% select(-c(Subject, quo_name(value)))
+  df_result <- df_result %>% dplyr::select(-c(Subject, quo_name(value)))
 
   #Calculate the ICC and RC
   df_result <- df_result %>%

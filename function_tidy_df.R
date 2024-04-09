@@ -6,7 +6,7 @@
 # The output is a tidy dataframe, with n columns for the parameters and one column with measured data
 
 tidy_df = function(df, n=1, labels=NULL) {
-  
+
 require(magrittr)
 require(tidyr)
 require(dplyr)

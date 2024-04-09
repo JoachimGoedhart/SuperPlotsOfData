@@ -31,9 +31,13 @@
 # Implement measures of reproducibility/repeatability
 
 
+
+
 library(shiny)
+library(plyr)
 library(tidyverse)
 library(ggbeeswarm)
+library(readxl)
 library(DT)
 library(RCurl)
 library(broom)
@@ -983,7 +987,7 @@ df_selected <- reactive({
     
     #Prevent error if y parameter is not selected
     if (input$y_var =='none') {
-      koos <- df_temp %>% select(Condition = !!x_choice)
+      koos <- df_temp %>% dplyr::select(Condition = !!x_choice)
       koos$Value <- 1
       koos$Replica <- as.factor("1")
       return(koos)
@@ -991,21 +995,21 @@ df_selected <- reactive({
     
     if (g_choice == "-") {
       if (input$x_var =='none') {
-        koos <- df_temp %>% select(Value = !!y_choice) %>% filter(!is.na(Value))
+        koos <- df_temp %>% dplyr::select(Value = !!y_choice) %>% filter(!is.na(Value))
         koos$Replica <- as.factor("1")
         koos$Condition <- as.factor("1")
       } else {
-        koos <- df_temp %>% select(Condition = !!x_choice , Value = !!y_choice) %>% filter(!is.na(Value))
+        koos <- df_temp %>% dplyr::select(Condition = !!x_choice , Value = !!y_choice) %>% filter(!is.na(Value))
         koos$Replica <- as.factor("1")
       }
     } else {
       #Prevent error if x parameter is not selected
       if (input$x_var =='none') {
-        koos <- df_temp %>% select(Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
+        koos <- df_temp %>% dplyr::select(Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
         koos$Condition <- as.factor("1")
         return(koos)
       } else {
-      koos <- df_temp %>% select(Condition = !!x_choice , Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
+      koos <- df_temp %>% dplyr::select(Condition = !!x_choice , Value = !!y_choice, Replica = !!g_choice) %>% filter(!is.na(Value))
       }
     }
     
@@ -1050,7 +1054,7 @@ df_summ_per_replica <- reactive({
 
   koos <- df_selected() %>%
     group_by(Condition, Replica) %>% 
-    summarise(n = n(),
+    dplyr::summarise(n = n(),
             mean = mean(Value, na.rm = TRUE),
             sd = sd(Value, na.rm = TRUE),
             median= median(Value, na.rm = TRUE),
@@ -1168,7 +1172,7 @@ plotdata <- reactive({
         kleur <- 'Replica'
         
         if (input$add_shape) {
-          vorm <- 'Replica'
+          vorm <- sym('Replica')
         } else {vorm <- NULL}
 
   
@@ -1199,7 +1203,7 @@ plotdata <- reactive({
 
     
     #########################
-    p <- ggplot(data=klaas, aes_string(x='Condition')) 
+    p <- ggplot(data=klaas, aes(x=Condition)) 
     
     if (!input$x_cont) {
       # Setting the order of the x-axis
@@ -1213,9 +1217,13 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
+      # p <- p + geom_quasirandom(data=klaas, aes(x=Condition, y=Value, color = .data[[kleur]], shape = .data[[vorm]], fill = .data[[kleur]]), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
       p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
-      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
+      
+      ##### This is the way to do it, as aes_string() is deprecated. #########
+      p <- p + geom_jitter(data=klaas, aes(x=Condition, y=Value, color = Replica, shape = !!vorm, fill = Replica), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
+      # p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "no_jitter") {
       p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=0, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "violin") {
@@ -1226,14 +1234,14 @@ plotdata <- reactive({
     if (input$paired == TRUE && input$jitter_type != "violin") {
       #Need to add another column that defines pairing
       klaas <- klaas %>% group_by(Condition) %>% mutate (id=row_number()) %>% ungroup()
-      p <-  p + geom_line(data=klaas, aes_string(x='Condition', y='Value', color=kleur, group = 'id'), size = .2, linetype=input$connect, alpha=input$alphaInput) 
+      p <-  p + geom_line(data=klaas, aes_string(x='Condition', y='Value', color=kleur, group = 'id'), linewidth = .2, linetype=input$connect, alpha=input$alphaInput) 
     }
     
     if (input$summary_condition=="mean_SD" && input$split_direction=="No") {
-      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
       p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
     } else if (input$summary_condition=="mean_SD" && input$split_direction!="No") {
-      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+      p <- p + stat_summary(data=klaas, aes(x=Condition, y=Value, group = Replica),
                             fun.data = add_SD,
                             geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
@@ -1258,7 +1266,7 @@ plotdata <- reactive({
     }
     
     #Add line to depict paired replicates
-      p <-  p + geom_line(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', color=kleur), size = 1, linetype=input$connect) 
+      p <-  p + geom_line(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', color=kleur), linewidth = 1, linetype=input$connect) 
 
     #Distinguish replicates by symbol
     # if (input$add_shape)
@@ -1268,20 +1276,23 @@ plotdata <- reactive({
 
       #Distinguish replicates by symbol
       if (input$add_shape)
-        p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, shape = vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8)
+        p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, shape = !!vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8)
        if (!input$add_shape) {
         
          if (!input$add_n)
-           p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
+           # p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
+          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
+         
+         
          
          if (input$add_n)
-          p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur, size='n'), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1)
+          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, size=n), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1)
          p <- p + scale_size_area(max_size = 8)
        }
       
     #Show distribution for each replicate
     if  (input$show_distribution) {
-      p <- p + geom_flat_violin(data=klaas, aes_string(x='Condition', y='Value',  fill=kleur),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
+      p <- p + geom_flat_violin(data=klaas, aes(x=Condition, y=Value,  fill=Replica),color=NA,scale = "width", width=0.7,position = position_nudge(x = .22, y = 0), trim=FALSE, alpha = 0.75*input$alphaInput)
     }
     
 ########### Do some formatting of the lay-out ###########
@@ -1450,13 +1461,13 @@ df_difference <- reactive({
   ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
   if (length(unique(df$Replica)) > 1) {
     if (input$summary_replicate =="median")  {
-      df <- df_summ_per_replica() %>% rename(Value=mean) #Even when median is selected as summary, the mean is used for the t-test
+      df <- df_summ_per_replica() %>% dplyr::rename(Value=mean) #Even when median is selected as summary, the mean is used for the t-test
     } else if (input$summary_replicate =="mean") {
-      df <- df_summ_per_replica() %>% rename(Value=mean)}
+      df <- df_summ_per_replica() %>% dplyr::rename(Value=mean)}
   }
   
   # Select only the relevant data from the dataframe
-  df <- df %>% select(Condition, Value, Replica)
+  df <- df %>% dplyr::select(Condition, Value, Replica)
   
   # If no replicates are defined, treat each samples as a replicate. This will ensure proper behaviour in the t-test
   if (length(unique(df$Replica)) == 1) {
@@ -1496,7 +1507,7 @@ df_difference <- reactive({
   
   # observe({print(df_difference)})  
   
-  df_difference <- df_difference  %>% select(Condition, difference=estimate, `95%CI_lo`=conf.low, `95%CI_hi`=conf.high,p.value)
+  df_difference <- df_difference  %>% dplyr::select(Condition, difference=estimate, `95%CI_lo`=conf.low, `95%CI_hi`=conf.high,p.value)
   
   df_difference <- df_difference %>% mutate_at(c(2:4), round, input$digits)  %>% mutate_at(c(5), round, 8)
   
@@ -1520,12 +1531,12 @@ df_summary_condition <- reactive({
   ## When multiple replicates are present, use the df with summaries per replicate as input for calculation of differences
   if (length(unique(df$Replica)) > 1) {
     if (input$summary_replicate =="median")  {
-      df <- df_summ_per_replica() %>% rename(Value=median)
+      df <- df_summ_per_replica() %>% dplyr::rename(Value=median)
     } else if (input$summary_replicate =="mean") {
-      df <- df_summ_per_replica() %>% rename(Value=mean)}
+      df <- df_summ_per_replica() %>% dplyr::rename(Value=mean)}
   }
 
-  df <- df %>% group_by(Condition) %>% summarise(n = n(),
+  df <- df %>% group_by(Condition) %>% dplyr::summarise(n = n(),
                                                  mean = mean(Value),
                                                  sd = sd(Value))  %>%
     mutate(sem = sd / sqrt(n - 1),
@@ -1552,16 +1563,17 @@ df_summary_condition_rounded <- reactive({
 })
 
 df_repeats_rounded <- reactive({
-  
+
   ## Need to add the repeats for each subject
-  df <- df_selected() %>% group_by(Condition, Replica) %>% mutate(replicates=row_number()) %>% ungroup()
-  
+  df <- df_selected() %>% group_by(Condition, Replica) %>% dplyr::mutate(replicates=row_number()) %>% ungroup()
+  # df <- df_selected()
+
   ## Calculate paramaters
   df <- df %>% repeatability(values=Value, replicates=replicates , groups=Condition) %>%
-    select(-c(Replica, replicates, TSS, SSw, SSb, MSw, MSb))
-  
+     dplyr::select(-c(Replica, replicates, TSS, SSw, SSb, MSw, MSb))
   
   df <- df %>% mutate_at(c(4:9), round, input$digits)
+  
 })
 
 #### A predefined selection of stats for the table  ###########
