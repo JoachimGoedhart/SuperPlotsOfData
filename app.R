@@ -615,11 +615,6 @@ df_filtered <- reactive({
     
   } else {df <- df_upload()}
   
-  #Replace space and dot of header names by underscore
-  df <- df %>%  
-    select_all(~gsub("\\s+|\\.", "_", .))
-
-  
 })
 
 ##### CONVERT TO TIDY DATA ##########
@@ -1026,7 +1021,7 @@ observeEvent(input$x_var != 'none', {
   
   if (input$x_var != 'none') {
     
-    koos <- df_selected()
+    koos <- df_sorted()
     conditions_list <- as.factor(koos$Condition)
     # observe(print((conditions_list)))
     updateSelectInput(session, "zero", choices = conditions_list)
@@ -1052,7 +1047,8 @@ output$data_uploaded <- renderDataTable(
 
 df_summ_per_replica <- reactive({
 
-  koos <- df_selected() %>%
+  koos <- df_sorted() %>%
+  # koos <- df_selected() %>%
     group_by(Condition, Replica) %>% 
     dplyr::summarise(n = n(),
             mean = mean(Value, na.rm = TRUE),
