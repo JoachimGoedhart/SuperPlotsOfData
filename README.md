@@ -11,7 +11,7 @@ The SuperPlotsOfData Shiny app combines the idea of SuperPlots with the philosop
 
 ### Running the App
 
-The app is available online: [https://huygens.science.uva.nl/SuperPlotsOfData/](https://huygens.science.uva.nl/SuperPlotsOfData/)
+The app is available online: [https://huygens.science.uva.nl/SuperPlotsOfData/](https://huygens.science.uva.nl/SuperPlotsOfData/) or [https://amsterdamstudygroup.shinyapps.io/SuperPlotsOfData/](https://amsterdamstudygroup.shinyapps.io/SuperPlotsOfData/)
 
 But you can also run it offline in R/Rstudio. To run the app locally, you'll need the following packages: shiny, ggplot2, dplyr, tidyr, readr, magrittr, ggbeeswarm, readxl, DT, RCurl, broom. To download and install all the packages at once use in Rstudio:
 
