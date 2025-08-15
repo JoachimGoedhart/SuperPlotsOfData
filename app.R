@@ -1137,7 +1137,7 @@ plotdata <- reactive({
 ####### Read the order from the ordered dataframe #############
     koos <- df_sorted()
 
-    stats <- as.character(input$summary_replicate)
+    stats <- sym(as.character(input$summary_replicate))
 
 #   observe({ print(koos) })
 
@@ -1213,24 +1213,25 @@ plotdata <- reactive({
 
    #### plot individual measurements (middle layer) ####
     if (input$jitter_type == "quasirandom") {
-      # p <- p + geom_quasirandom(data=klaas, aes(x=Condition, y=Value, color = .data[[kleur]], shape = .data[[vorm]], fill = .data[[kleur]]), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
-      p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
+      ##### This is the way to do it, as aes_string() is deprecated. #########
+      p <- p + geom_quasirandom(data=klaas, aes(x=Condition, y=Value, color = Replica, shape = !!vorm, fill = Replica), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
+      #p <- p + geom_quasirandom(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width, cex=input$dot_size, alpha=input$alphaInput, groupOnX=TRUE)
     } else if (input$jitter_type == "random") {
 
       ##### This is the way to do it, as aes_string() is deprecated. #########
       p <- p + geom_jitter(data=klaas, aes(x=Condition, y=Value, color = Replica, shape = !!vorm, fill = Replica), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
       # p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=data_width*0.8, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "no_jitter") {
-      p <- p + geom_jitter(data=klaas, aes_string(x='Condition', y='Value', color = kleur, shape = vorm, fill = kleur), width=0, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
+      p <- p + geom_jitter(data=klaas, aes(x=Condition, y=Value, color = Replica, shape = !!vorm, fill = Replica), width=0, height=0.0, cex=input$dot_size, alpha=input$alphaInput)
     } else if (input$jitter_type == "violin") {
-      p <- p + geom_violin(data=klaas, aes_string(x='Condition', y='Value', group='Condition'),width=data_width*2, fill='grey50', color=NA, alpha=input$alphaInput)
+      p <- p + geom_violin(data=klaas, aes(x=Condition, y=Value, group=Condition),width=data_width*2, fill='grey50', color=NA, alpha=input$alphaInput)
     }
 
     #Add lines when all data is paired
     if (input$paired == TRUE && input$jitter_type != "violin") {
       #Need to add another column that defines pairing
       klaas <- klaas %>% group_by(Condition) %>% mutate (id=row_number()) %>% ungroup()
-      p <-  p + geom_line(data=klaas, aes_string(x='Condition', y='Value', color=kleur, group = 'id'), linewidth = .2, linetype=input$connect, alpha=input$alphaInput)
+      p <-  p + geom_line(data=klaas, aes(x=Condition, y=Value, color= Replica, group = id), linewidth = .2, linetype=input$connect, alpha=input$alphaInput)
     }
 
     if (input$summary_condition=="mean_SD" && input$split_direction=="No") {
@@ -1243,26 +1244,26 @@ plotdata <- reactive({
     }
 
     if (input$summary_condition=="mean_CI" && input$split_direction=="No") {
-      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
-      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin='`95%CI_lo`', ymax='`95%CI_hi`'), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=`95%CI_lo`, ymax=`95%CI_hi`), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
     } else if (input$summary_condition=="mean_CI" && input$split_direction!="No") {
 
-      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+      p <- p + stat_summary(data=klaas, aes(x=Condition, y=Value, group = Replica),
                             fun.data = add_CI,
                             geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
 
     if (input$summary_condition=="mean_sem" && input$split_direction=="No") {
-      p <-  p + geom_errorbar(data = df_summary_condition(), aes_string(x='Condition', ymin="mean", ymax="mean"), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
       p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sem, ymax=mean+sem), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
     } else if (input$summary_condition=="mean_sem" && input$split_direction!="No") {
-      p <- p + stat_summary(data=klaas, aes_string(x='Condition', y='Value', group = 'Replica'),
+      p <- p + stat_summary(data=klaas, aes(x=Condition, y=Value, group = Replica),
                             fun.data = add_sem,
                             geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
     }
 
     #Add line to depict paired replicates
-      p <-  p + geom_line(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', color=kleur), linewidth = 1, linetype=input$connect)
+      p <-  p + geom_line(data=df_summ_per_replica(), aes(x=Condition, y=!!stats, group = Replica, color=Replica), linewidth = 1, linetype=input$connect)
 
     #Distinguish replicates by symbol
     # if (input$add_shape)
