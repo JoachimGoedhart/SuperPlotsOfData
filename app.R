@@ -149,7 +149,7 @@ ui <- fluidPage(
                           # "Example data (tidy format)" = 1,
                          "Example data (tidy)" = 1,
                          "Example data (tidy)" = 2,
-                         "Upload file" = 3,
+                         "Upload file(s)" = 3,
                          "Paste data" = 4,
                          "URL (csv files only)" = 5
                        )
@@ -171,7 +171,7 @@ ui <- fluidPage(
                    conditionalPanel(
                      condition = "input.data_input=='3'",
                      h5("Upload file: "),
-                     fileInput("upload", NULL, multiple = FALSE, accept = c(".xlsx", ".xls", ".txt", ".csv")),
+                     fileInput("upload", NULL, multiple = TRUE, accept = c(".xlsx", ".xls", ".txt", ".csv")),
                      # selectInput("file_type", "Type of file:",
                      #             list("text (csv)" = "text",
                      #                  "Excel" = "Excel"
@@ -530,10 +530,19 @@ df_upload <- reactive({
 
 
               if (fileext=="xls" || fileext=="xlsx") {
-                  data <- readxl::read_excel(file_in$datapath)
+                  df_input_list <- lapply(input$upload$datapath, readxl::read_excel)
+                  # data <- readxl::read_excel(file_in$datapath)
               } else if (fileext == "txt" || fileext=="csv") {
-                  data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"), stringsAsFactors = TRUE)
+                  df_input_list <- lapply(input$upload$datapath, function(x) read.csv(x, na.strings = c("",".","NA", "NaN", "#N/A", "#VALUE!", "#DIV/0!")))
+                
+                  # data <- read.csv(file=file_in$datapath, sep = input$upload_delim, na.strings=c("",".","NA", "NaN", "#N/A"), stringsAsFactors = TRUE)
               }
+          
+          names(df_input_list) <- gsub(input$upload$name, pattern="\\..*", replacement="")
+          
+          data <- bind_rows(df_input_list, .id = "ids")
+          data <- data %>% separate(ids, into = paste0("col", 1:10), sep = '_') %>% select(where(~ any(!is.na(.))))
+          
 
         #### Read wide Data and convert #####
         } else if (input$toggle_tidy == TRUE) {
