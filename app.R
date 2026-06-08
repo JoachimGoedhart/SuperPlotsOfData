@@ -154,7 +154,7 @@ ui <- fluidPage(
                          "URL (csv files only)" = 5
                        )
                      ,
-                     selected =  1),
+                      selected =  1),
                    conditionalPanel(
                      condition = "input.data_input=='2'"
 
@@ -289,6 +289,14 @@ ui <- fluidPage(
         h4("Replicates"),
         radioButtons(inputId = "summary_replicate", label = "Statistics per replicate:", choices = list("Mean" = "mean", "Median" = "median"), selected = "mean"),
         sliderInput(inputId = "alphaStats", label = "Visibility of the stats", 0, 1, 1),
+        div(
+          style = "display: grid; 
+                            grid-template-columns: 45% 45%;
+                            grid-gap: 10px;",
+          numericInput(inputId = "jitter", label = "Jitter", 0, 0, 0.5, step = 0.05),
+          numericInput(inputId = "seed", label = "Seed", 42, 0, 255, step = 1),
+        ),
+        
         radioButtons(inputId = "connect", label = "Connect the dots (treat as paired data):", choices = list("No" = "blank", "Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"), selected = "blank"),
 
 
@@ -1282,17 +1290,17 @@ plotdata <- reactive({
 
       #Distinguish replicates by symbol
       if (input$add_shape)
-        p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, shape = !!vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8)
+        p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, shape = !!vorm), alpha=input$alphaStats, position = position_jitter(width = input$jitter, seed = input$seed), color=line_color, stroke = 1, size = 8)
        if (!input$add_shape) {
 
          if (!input$add_n)
            # p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
-          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
+          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, position = position_jitter(width = input$jitter, seed = input$seed), color=line_color, shape=21, stroke = 1, size = 8)
 
 
 
          if (input$add_n)
-          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, size=n), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1)
+          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, size=n), alpha=input$alphaStats, position = position_jitter(width = input$jitter, seed = input$seed), color=line_color, shape=21, stroke = 1)
          p <- p + scale_size_area(max_size = 8)
        }
 
