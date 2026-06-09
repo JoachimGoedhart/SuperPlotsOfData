@@ -549,7 +549,7 @@ df_upload <- reactive({
           names(df_input_list) <- gsub(input$upload$name, pattern="\\..*", replacement="")
           
           data <- bind_rows(df_input_list, .id = "ids")
-          data <- data %>% separate(ids, into = paste0("col", 1:10), sep = '_') %>% select(where(~ any(!is.na(.))))
+          data <- data %>% separate(ids, into = paste0("col", 1:10), sep = '[_-]') %>% select(where(~ any(!is.na(.))))
           
 
         #### Read wide Data and convert #####
