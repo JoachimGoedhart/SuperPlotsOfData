@@ -259,6 +259,7 @@ ui <- fluidPage(
                                  label = "All data are paired/connected",
                                  value = FALSE),
                    hr(),
+                   downloadButton("downloadData", "Download (tidy) data (csv)"),
                    checkboxInput(inputId = "info_data",
                                  label = "Show information on data formats",
                                  value = FALSE),
@@ -293,8 +294,8 @@ ui <- fluidPage(
           style = "display: grid; 
                             grid-template-columns: 45% 45%;
                             grid-gap: 10px;",
-          numericInput(inputId = "jitter", label = "Jitter", 0, 0, 0.5, step = 0.05),
-          numericInput(inputId = "seed", label = "Seed", 42, 0, 255, step = 1),
+          numericInput(inputId = "jitter", label = "Offset", 0, 0, 0.5, step = 0.05),
+          # numericInput(inputId = "seed", label = "Seed", 42, 0, 255, step = 1),
         ),
         
         radioButtons(inputId = "connect", label = "Connect the dots (treat as paired data):", choices = list("No" = "blank", "Dotted line" = "dotted", "Dashed line"= "dashed", "Solid line" ="solid"), selected = "blank"),
@@ -329,10 +330,10 @@ ui <- fluidPage(
         selectInput("split_direction", label = "Split replicates:", choices = list("No", "Horizontal", "Vertical"), selected = "No"),
 
         # h4("Comparing conditions"),
-        radioButtons(inputId = "summary_condition", label = "Error bars:", choices = list("Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "Mean & s.e.m." = "mean_sem", "none"="none"), selected = "none"),
+        radioButtons(inputId = "summary_condition", label = "Stats:", choices = list("Mean" = "mean", "Mean & S.D." = "mean_SD", "Mean & 95%CI" = "mean_CI", "Mean & s.e.m." = "mean_sem", "none"="none"), selected = "none"),
 
         conditionalPanel(condition = "input.summary_condition != 'none'",
-                         sliderInput("alphaInput_summ", "Visibility of the error bar:", 0, 1, 1)
+                         sliderInput("alphaInput_summ", "Visibility of the statistic:", 0, 1, 1)
         ),
 
 
@@ -549,7 +550,19 @@ df_upload <- reactive({
           names(df_input_list) <- gsub(input$upload$name, pattern="\\..*", replacement="")
           
           data <- bind_rows(df_input_list, .id = "ids")
-          data <- data %>% separate(ids, into = paste0("col", 1:10), sep = '[_-]') %>% select(where(~ any(!is.na(.))))
+          
+          #In case of multi-file upload, use the metadata in the filenames to populate columns (using _ or - as separator)
+          if (length(input$upload$datapath) > 1) {
+            data <- data %>%
+              separate(ids, into = paste0("col", 1:10), sep = '[_-]') %>%
+              select(where(~ any(!is.na(.))))
+          } else {
+            data <- data %>% select(-ids)
+          }
+        
+          
+          
+          # data <- data %>% separate(ids, into = paste0("col", 1:10), sep = '[_-]') %>% select(where(~ any(!is.na(.))))
           
 
         #### Read wide Data and convert #####
@@ -1250,6 +1263,23 @@ plotdata <- reactive({
       klaas <- klaas %>% group_by(Condition) %>% mutate (id=row_number()) %>% ungroup()
       p <-  p + geom_line(data=klaas, aes(x=Condition, y=Value, color= Replica, group = id), linewidth = .2, linetype=input$connect, alpha=input$alphaInput)
     }
+    
+    
+    if (input$summary_condition=="mean" && input$split_direction=="No") {
+      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+#      p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean-sd, ymax=mean+sd), width=data_width*0.8, color=line_color, size=2, alpha=input$alphaInput_summ)
+    } else if (input$summary_condition=="mean" && input$split_direction!="No") {
+      
+      p <-  p + geom_errorbar(data = df_summ_per_replica(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+      
+      
+      # p <- p + stat_summary(data=klaas, aes(x=Condition, y=Value, group = Replica),
+      #                       fun.data = add_SD,
+      #                       geom = "errorbar", width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
+    }
+    
+    
+    
 
     if (input$summary_condition=="mean_SD" && input$split_direction=="No") {
       p <-  p + geom_errorbar(data = df_summary_condition(), aes(x=Condition, ymin=mean, ymax=mean), width=data_width*1.2, color=line_color, size=2, alpha=input$alphaInput_summ)
@@ -1290,17 +1320,19 @@ plotdata <- reactive({
 
       #Distinguish replicates by symbol
       if (input$add_shape)
-        p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, shape = !!vorm), alpha=input$alphaStats, position = position_jitter(width = input$jitter, height = 0.0, seed = input$seed), color=line_color, stroke = 1, size = 8)
+        p <-  p + geom_quasirandom(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, shape = !!vorm), alpha=input$alphaStats, color=line_color, stroke = 1, size = 8, width = input$jitter)
        if (!input$add_shape) {
 
          if (!input$add_n)
            # p <-  p + geom_point(data=df_summ_per_replica(), aes_string(x='Condition', y=stats, group = 'Replica', fill = kleur), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8)
-          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, position = position_jitter(width = input$jitter, height = 0.0, seed = input$seed), color=line_color, shape=21, stroke = 1, size = 8)
+          # p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, position = position_jitter(width = input$jitter, height = 0.0, seed = input$seed), color=line_color, shape=21, stroke = 1, size = 8)
+         p <-  p + geom_quasirandom(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, size = 8, width = input$jitter)
+         
 
 
 
          if (input$add_n)
-          p <-  p + geom_point(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, size=n), alpha=input$alphaStats, position = position_jitter(width = input$jitter, height = 0.0, seed = input$seed), color=line_color, shape=21, stroke = 1)
+          p <-  p + geom_quasirandom(data=df_summ_per_replica(), aes(x=Condition, y=.data[[input$summary_replicate]], group = Replica, fill = Replica, size=n), alpha=input$alphaStats, color=line_color, shape=21, stroke = 1, width = input$jitter)
          p <- p + scale_size_area(max_size = 8)
        }
 
@@ -1429,14 +1461,15 @@ output$coolplot <- renderPlot(width = width, height = height, {
 )
 
 
-#### Export the data in tidy format ###########
+############## Export data in tidy format ###########
 
 output$downloadData <- downloadHandler(
+  
   filename = function() {
-    paste("PlotsOfData_Tidy", ".csv", sep = "")
+    paste("SuperPlots_tidy", ".csv", sep = "")
   },
   content = function(file) {
-    write.csv(df_selected(), file, row.names = FALSE)
+    write.csv(df_filtered(), file, row.names = FALSE)
   }
 )
 
